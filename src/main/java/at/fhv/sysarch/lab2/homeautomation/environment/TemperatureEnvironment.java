@@ -18,6 +18,8 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
 
     public record GetTemperature(ActorRef<TemperatureResponse> replyTo) implements TemperatureEnvironmentCommand {}
 
+    public record SetTemperature(double value) implements TemperatureEnvironmentCommand {}
+
     public record TemperatureResponse(double value) {}
 
     private enum TemperatureTick implements TemperatureEnvironmentCommand {
@@ -47,12 +49,19 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
         return newReceiveBuilder()
                 .onMessage(TemperatureTick.class, tick -> onTemperatureTick())
                 .onMessage(GetTemperature.class, this::onGetTemperature)
+                .onMessage(SetTemperature.class, this::onSetTemperature)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
     private Behavior<TemperatureEnvironmentCommand> onGetTemperature(GetTemperature g) {
         g.replyTo().tell(new TemperatureResponse(this.temperature));
+        return this;
+    }
+
+    private Behavior<TemperatureEnvironmentCommand> onSetTemperature(SetTemperature s) {
+        this.temperature = s.value();
+        getContext().getLog().info("TemperatureEnvironment manually set to {}°C", this.temperature);
         return this;
     }
 

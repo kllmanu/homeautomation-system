@@ -38,11 +38,11 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         getContext().spawn(WeatherSensor.create(blinds), "weatherSensor");
 
         // Environment Actors
-        getContext().spawn(TemperatureEnvironment.create(20.0), "temperatureEnvironment");
-        getContext().spawn(WeatherEnvironment.create(WeatherEnvironment.Weather.SUNNY), "weatherEnvironment");
+        ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempEnv = getContext().spawn(TemperatureEnvironment.create(20.0), "temperatureEnvironment");
+        ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv = getContext().spawn(WeatherEnvironment.create(WeatherEnvironment.Weather.SUNNY), "weatherEnvironment");
 
         final Http http = Http.get(context.getSystem());
-        DemoHttpServer app = new DemoHttpServer();
+        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv);
         final CompletionStage<ServerBinding> binding = http.newServerAt("localhost", 8084).bind(app.createRoute());
 
         getContext().getLog().info("HomeAutomation Application started - PRESS RETURN TO EXIT");

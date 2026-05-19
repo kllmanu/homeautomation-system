@@ -22,6 +22,8 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
 
     public record GetWeather(ActorRef<WeatherResponse> replyTo) implements WeatherEnvironmentCommand {}
 
+    public record SetWeather(Weather weather) implements WeatherEnvironmentCommand {}
+
     public record WeatherResponse(Weather weather) {}
 
     private enum WeatherTick implements WeatherEnvironmentCommand {
@@ -51,12 +53,19 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
         return newReceiveBuilder()
                 .onMessage(WeatherTick.class, tick -> onWeatherTick())
                 .onMessage(GetWeather.class, this::onGetWeather)
+                .onMessage(SetWeather.class, this::onSetWeather)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
     private Behavior<WeatherEnvironmentCommand> onGetWeather(GetWeather g) {
         g.replyTo().tell(new WeatherResponse(this.weather));
+        return this;
+    }
+
+    private Behavior<WeatherEnvironmentCommand> onSetWeather(SetWeather s) {
+        this.weather = s.weather();
+        getContext().getLog().info("WeatherEnvironment manually set to {}", this.weather);
         return this;
     }
 
