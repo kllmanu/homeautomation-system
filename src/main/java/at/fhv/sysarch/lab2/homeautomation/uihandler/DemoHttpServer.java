@@ -20,12 +20,15 @@ public class DemoHttpServer extends AllDirectives {
 
     private final ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment;
     private final ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment;
+    private final String mode;
     private final Template indexTemplate;
 
     public DemoHttpServer(ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment,
-                          ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment) {
+                          ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment,
+                          String mode) {
         this.temperatureEnvironment = temperatureEnvironment;
         this.weatherEnvironment = weatherEnvironment;
+        this.mode = mode;
 
         TemplateLoader loader = new ClassPathTemplateLoader("/templates", ".hbs");
         Handlebars handlebars = new Handlebars(loader);
@@ -42,6 +45,8 @@ public class DemoHttpServer extends AllDirectives {
                         get(() -> {
                             Map<String, Object> model = new HashMap<>();
                             model.put("title", "Home Automation Environment Control");
+                            model.put("mode", this.mode);
+                            model.put("isManual", this.mode.equals("MANUAL"));
                             try {
                                 String rendered = indexTemplate.apply(model);
                                 return complete(HttpEntities.create(ContentTypes.TEXT_HTML_UTF8, rendered));
@@ -52,22 +57,28 @@ public class DemoHttpServer extends AllDirectives {
                 ),
                 path("hello", () -> get(() -> complete("<h1>Say hello to pekko-http</h1>"))),
                 path("temperature", () ->
-                        post(() ->
-                                formField("value", value -> {
-                                    double temp = Double.parseDouble(value);
-                                    this.temperatureEnvironment.tell(new TemperatureEnvironment.SetTemperature(temp));
-                                    return complete("Temperature set to " + temp);
-                                })
-                        )
+                        post(() -> {
+                            if (!this.mode.equals("MANUAL")) {
+                                return complete("Manual override is disabled in " + this.mode + " mode");
+                            }
+                            return formField("value", value -> {
+                                double temp = Double.parseDouble(value);
+                                this.temperatureEnvironment.tell(new TemperatureEnvironment.SetTemperature(temp));
+                                return complete("Temperature set to " + temp);
+                            });
+                        })
                 ),
                 path("weather", () ->
-                        post(() ->
-                                formField("value", value -> {
-                                    WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.valueOf(value.toUpperCase());
-                                    this.weatherEnvironment.tell(new WeatherEnvironment.SetWeather(weather));
-                                    return complete("Weather set to " + weather);
-                                })
-                        )
+                        post(() -> {
+                            if (!this.mode.equals("MANUAL")) {
+                                return complete("Manual override is disabled in " + this.mode + " mode");
+                            }
+                            return formField("value", value -> {
+                                WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.valueOf(value.toUpperCase());
+                                this.weatherEnvironment.tell(new WeatherEnvironment.SetWeather(weather));
+                                return complete("Weather set to " + weather);
+                            });
+                        })
                 )
         );
     }

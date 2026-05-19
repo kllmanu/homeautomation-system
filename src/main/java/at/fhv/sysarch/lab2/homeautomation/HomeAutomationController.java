@@ -90,7 +90,8 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         }
 
         final Http http = Http.get(context.getSystem());
-        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv);
+        String modeString = external ? "EXTERNAL" : (manual ? "MANUAL" : "INTERNAL");
+        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, modeString);
         final CompletionStage<ServerBinding> binding = http.newServerAt("localhost", 8084).bind(app.createRoute());
 
         getContext().getLog().info("PRESS RETURN TO EXIT");
