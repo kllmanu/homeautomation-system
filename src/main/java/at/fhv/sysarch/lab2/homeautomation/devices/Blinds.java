@@ -15,6 +15,7 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
 
     public record WeatherChanged(WeatherCondition weatherCondition) implements BlindsCommand {}
     public record MediaStationPlaying(boolean playing) implements BlindsCommand {}
+    public record ControlBlinds(boolean close) implements BlindsCommand {}
 
     public static Behavior<BlindsCommand> create() {
         return Behaviors.setup(Blinds::new);
@@ -34,6 +35,7 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
         return newReceiveBuilder()
                 .onMessage(WeatherChanged.class, this::onWeatherChanged)
                 .onMessage(MediaStationPlaying.class, this::onMediaStationPlaying)
+                .onMessage(ControlBlinds.class, this::onControlBlinds)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
@@ -52,6 +54,19 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
         getContext().getLog().info("Blinds received MediaStation update: playing={}", m.playing());
         
         updateBlindsState();
+        return this;
+    }
+
+    private Behavior<BlindsCommand> onControlBlinds(ControlBlinds c) {
+        if (c.close() && !blindsClosed) {
+            getContext().getLog().info("Blinds: Closing (Manual)");
+            blindsClosed = true;
+        } else if (!c.close() && blindsClosed) {
+            getContext().getLog().info("Blinds: Opening (Manual)");
+            blindsClosed = false;
+        } else {
+            getContext().getLog().info("Blinds: Already {}", c.close() ? "closed" : "open");
+        }
         return this;
     }
 

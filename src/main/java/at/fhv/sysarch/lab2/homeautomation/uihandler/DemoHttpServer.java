@@ -1,5 +1,8 @@
 package at.fhv.sysarch.lab2.homeautomation.uihandler;
 
+import at.fhv.sysarch.lab2.homeautomation.devices.AirCondition;
+import at.fhv.sysarch.lab2.homeautomation.devices.Blinds;
+import at.fhv.sysarch.lab2.homeautomation.devices.MediaStation;
 import at.fhv.sysarch.lab2.homeautomation.environment.TemperatureEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
 import com.github.jknack.handlebars.Handlebars;
@@ -20,14 +23,23 @@ public class DemoHttpServer extends AllDirectives {
 
     private final ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment;
     private final ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment;
+    private final ActorRef<AirCondition.AirConditionCommand> airCondition;
+    private final ActorRef<MediaStation.MediaStationCommand> mediaStation;
+    private final ActorRef<Blinds.BlindsCommand> blinds;
     private final String mode;
     private final Template indexTemplate;
 
     public DemoHttpServer(ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment,
                           ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment,
+                          ActorRef<AirCondition.AirConditionCommand> airCondition,
+                          ActorRef<MediaStation.MediaStationCommand> mediaStation,
+                          ActorRef<Blinds.BlindsCommand> blinds,
                           String mode) {
         this.temperatureEnvironment = temperatureEnvironment;
         this.weatherEnvironment = weatherEnvironment;
+        this.airCondition = airCondition;
+        this.mediaStation = mediaStation;
+        this.blinds = blinds;
         this.mode = mode;
 
         TemplateLoader loader = new ClassPathTemplateLoader("/templates", ".hbs");
@@ -79,6 +91,32 @@ public class DemoHttpServer extends AllDirectives {
                                 return complete("Weather set to " + weather);
                             });
                         })
+                ),
+                path("aircondition", () ->
+                        post(() -> formField("value", value -> {
+                            boolean power = Boolean.parseBoolean(value);
+                            this.airCondition.tell(new AirCondition.PowerAirCondition(power));
+                            return complete("AirCondition power set to " + power);
+                        }))
+                ),
+                path("mediastation", () ->
+                        concat(
+                                path("play", () -> post(() -> {
+                                    this.mediaStation.tell(new MediaStation.PlayMovie());
+                                    return complete("MediaStation: Play movie");
+                                })),
+                                path("stop", () -> post(() -> {
+                                    this.mediaStation.tell(new MediaStation.StopMovie());
+                                    return complete("MediaStation: Stop movie");
+                                }))
+                        )
+                ),
+                path("blinds", () ->
+                        post(() -> formField("value", value -> {
+                            boolean close = Boolean.parseBoolean(value);
+                            this.blinds.tell(new Blinds.ControlBlinds(close));
+                            return complete("Blinds " + (close ? "closed" : "opened"));
+                        }))
                 )
         );
     }

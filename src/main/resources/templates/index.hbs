@@ -40,6 +40,40 @@
     {{/if}}
 
     <div class="section">
+        <h2>Device Controls</h2>
+        
+        <div style="margin-bottom: 1em;">
+            <h3>AirCondition</h3>
+            <form action="/aircondition" method="post" style="display: inline;">
+                <button name="value" value="true" type="submit">Turn ON</button>
+            </form>
+            <form action="/aircondition" method="post" style="display: inline;">
+                <button name="value" value="false" type="submit">Turn OFF</button>
+            </form>
+        </div>
+
+        <div style="margin-bottom: 1em;">
+            <h3>MediaStation</h3>
+            <form action="/mediastation/play" method="post" style="display: inline;">
+                <button type="submit">Play Movie</button>
+            </form>
+            <form action="/mediastation/stop" method="post" style="display: inline;">
+                <button type="submit">Stop Movie</button>
+            </form>
+        </div>
+
+        <div style="margin-bottom: 1em;">
+            <h3>Blinds</h3>
+            <form action="/blinds" method="post" style="display: inline;">
+                <button name="value" value="true" type="submit">Close Blinds</button>
+            </form>
+            <form action="/blinds" method="post" style="display: inline;">
+                <button name="value" value="false" type="submit">Open Blinds</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="section">
         <h2>Run Instructions</h2>
         <p>To restart the system in a different mode, use the following commands:</p>
         <ul>

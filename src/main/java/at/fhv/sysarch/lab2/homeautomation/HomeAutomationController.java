@@ -52,7 +52,7 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         
         ActorRef<Blinds.BlindsCommand> blinds = getContext().spawn(Blinds.create(), "blinds");
         getContext().spawn(WeatherSensor.create(blinds), "weatherSensor");
-        getContext().spawn(MediaStation.create(blinds), "mediaStation");
+        ActorRef<MediaStation.MediaStationCommand> mediaStation = getContext().spawn(MediaStation.create(blinds), "mediaStation");
 
         ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempEnv;
         ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv;
@@ -93,7 +93,7 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
 
         final Http http = Http.get(context.getSystem());
         String modeString = external ? "EXTERNAL" : (manual ? "MANUAL" : "INTERNAL");
-        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, modeString);
+        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, airCondition, mediaStation, blinds, modeString);
         final CompletionStage<ServerBinding> binding = http.newServerAt("localhost", 8084).bind(app.createRoute());
 
         getContext().getLog().info("PRESS RETURN TO EXIT");
