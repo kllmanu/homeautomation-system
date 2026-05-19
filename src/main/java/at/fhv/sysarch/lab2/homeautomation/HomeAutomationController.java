@@ -2,6 +2,7 @@ package at.fhv.sysarch.lab2.homeautomation;
 
 import at.fhv.sysarch.lab2.homeautomation.devices.AirCondition;
 import at.fhv.sysarch.lab2.homeautomation.devices.Blinds;
+import at.fhv.sysarch.lab2.homeautomation.devices.MediaStation;
 import at.fhv.sysarch.lab2.homeautomation.devices.TemperatureSensor;
 import at.fhv.sysarch.lab2.homeautomation.devices.WeatherSensor;
 import at.fhv.sysarch.lab2.homeautomation.environment.ManualEnvironment;
@@ -51,6 +52,7 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         
         ActorRef<Blinds.BlindsCommand> blinds = getContext().spawn(Blinds.create(), "blinds");
         getContext().spawn(WeatherSensor.create(blinds), "weatherSensor");
+        getContext().spawn(MediaStation.create(blinds), "mediaStation");
 
         ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempEnv;
         ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv;
