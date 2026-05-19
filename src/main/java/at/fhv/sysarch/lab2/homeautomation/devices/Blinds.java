@@ -1,5 +1,6 @@
 package at.fhv.sysarch.lab2.homeautomation.devices;
 
+import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.model.WeatherCondition;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
@@ -18,6 +19,8 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
         return Behaviors.setup(Blinds::new);
     }
 
+    private boolean blindsClosed = false;
+
     private Blinds(ActorContext<BlindsCommand> context) {
         super(context);
         getContext().getLog().info("Blinds actor started");
@@ -34,10 +37,17 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     private Behavior<BlindsCommand> onWeatherChanged(WeatherChanged r) {
         getContext().getLog().info("Blinds received weather update: {} ({})", 
                 r.weatherCondition().value(), r.weatherCondition().unit());
-        // Simple logic: Close blinds if it's SUNNY (to keep cool) or RAINY (protection)
-        switch (r.weatherCondition().value()) {
-            case SUNNY, RAINY -> getContext().getLog().info("Blinds: Closing");
-            case CLOUDY -> getContext().getLog().info("Blinds: Opening");
+
+        if (r.weatherCondition().value() == WeatherEnvironment.Weather.SUNNY) {
+            if (!blindsClosed) {
+                getContext().getLog().info("Blinds: Closing");
+                blindsClosed = true;
+            }
+        } else {
+            if (blindsClosed) {
+                getContext().getLog().info("Blinds: Opening");
+                blindsClosed = false;
+            }
         }
         return this;
     }
