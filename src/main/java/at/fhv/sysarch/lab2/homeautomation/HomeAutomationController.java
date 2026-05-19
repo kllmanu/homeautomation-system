@@ -2,6 +2,8 @@ package at.fhv.sysarch.lab2.homeautomation;
 
 import at.fhv.sysarch.lab2.homeautomation.devices.AirCondition;
 import at.fhv.sysarch.lab2.homeautomation.devices.TemperatureSensor;
+import at.fhv.sysarch.lab2.homeautomation.environment.TemperatureEnvironment;
+import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.uihandler.DemoHttpServer;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -29,6 +31,10 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         // TODO: One exception to this rule is that you are allowed to pass the ActorRef when you are communicating through Request-Response (actor.ask())
         ActorRef<AirCondition.AirConditionCommand> airCondition = getContext().spawn(AirCondition.create(UUID.randomUUID().toString()), "airCondition");
         ActorRef<TemperatureSensor.TemperatureCommand> tempSensor = getContext().spawn(TemperatureSensor.create(airCondition), "temperatureSensor");
+
+        // Environment Actors
+        getContext().spawn(TemperatureEnvironment.create(20.0), "temperatureEnvironment");
+        getContext().spawn(WeatherEnvironment.create(WeatherEnvironment.Weather.SUNNY), "weatherEnvironment");
 
         final Http http = Http.get(context.getSystem());
         DemoHttpServer app = new DemoHttpServer();
