@@ -57,8 +57,20 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
 
     private Behavior<TemperatureCommand> onSenseTemperature() {
         if (this.temperatureEnvironment != null) {
-            ActorRef<TemperatureEnvironment.TemperatureResponse> responseAdapter = getContext().messageAdapter(TemperatureEnvironment.TemperatureResponse.class, WrappedTemperatureResponse::new);
-            this.temperatureEnvironment.tell(new TemperatureEnvironment.GetTemperature(responseAdapter));
+            getContext().ask(
+                    TemperatureEnvironment.TemperatureResponse.class,
+                    this.temperatureEnvironment,
+                    Duration.ofSeconds(3),
+                    TemperatureEnvironment.GetTemperature::new,
+                    (response, throwable) -> {
+                        if (response != null) {
+                            return new WrappedTemperatureResponse(response);
+                        } else {
+                            getContext().getLog().error("Failed to measure temperature: {}", throwable.getMessage());
+                            return new WrappedTemperatureResponse(new TemperatureEnvironment.TemperatureResponse(Double.NaN));
+                        }
+                    }
+            );
         } else {
             getContext().getLog().warn("TemperatureSensor: TemperatureEnvironment not available");
         }
