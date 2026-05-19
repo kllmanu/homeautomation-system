@@ -20,6 +20,12 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
 
     public record SetTemperature(double value) implements TemperatureEnvironmentCommand {}
 
+    public record SetTemperatureExternal(double value) implements TemperatureEnvironmentCommand {}
+
+    public enum Mode {
+        INTERNAL, EXTERNAL, MANUAL
+    }
+
     public record TemperatureResponse(double value) {}
 
     private enum TemperatureTick implements TemperatureEnvironmentCommand {
@@ -27,21 +33,25 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     }
 
     private double temperature;
+    private final Mode mode;
 
-    public static Behavior<TemperatureEnvironmentCommand> create(double initialTemperature) {
+    public static Behavior<TemperatureEnvironmentCommand> create(double initialTemperature, Mode mode) {
         return Behaviors.setup(context -> {
             context.getSystem().receptionist().tell(Receptionist.register(TEMPERATURE_ENVIRONMENT_SERVICE_KEY, context.getSelf()));
             return Behaviors.withTimers(timers -> {
-                timers.startTimerAtFixedRate(TemperatureTick.INSTANCE, Duration.ofSeconds(5));
-                return new TemperatureEnvironment(context, initialTemperature);
+                if (mode == Mode.INTERNAL) {
+                    timers.startTimerAtFixedRate(TemperatureTick.INSTANCE, Duration.ofSeconds(5));
+                }
+                return new TemperatureEnvironment(context, initialTemperature, mode);
             });
         });
     }
 
-    private TemperatureEnvironment(ActorContext<TemperatureEnvironmentCommand> context, double initialTemperature) {
+    private TemperatureEnvironment(ActorContext<TemperatureEnvironmentCommand> context, double initialTemperature, Mode mode) {
         super(context);
         this.temperature = initialTemperature;
-        getContext().getLog().info("TemperatureEnvironment started with {}°C", this.temperature);
+        this.mode = mode;
+        getContext().getLog().info("TemperatureEnvironment started in {} mode with {}°C", this.mode, this.temperature);
     }
 
     @Override
@@ -50,6 +60,7 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
                 .onMessage(TemperatureTick.class, tick -> onTemperatureTick())
                 .onMessage(GetTemperature.class, this::onGetTemperature)
                 .onMessage(SetTemperature.class, this::onSetTemperature)
+                .onMessage(SetTemperatureExternal.class, this::onSetTemperatureExternal)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
@@ -65,19 +76,29 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
         return this;
     }
 
-    private Behavior<TemperatureEnvironmentCommand> onTemperatureTick() {
-        // Simulate temperature change: random walk +/- 0.5 degrees
-        double change = (Math.random() - 0.5);
-        this.temperature += change;
-
-        // Clamp temperature between -10 and +35
-        if (this.temperature < -10) {
-            this.temperature = -10;
-        } else if (this.temperature > 35) {
-            this.temperature = 35;
+    private Behavior<TemperatureEnvironmentCommand> onSetTemperatureExternal(SetTemperatureExternal s) {
+        if (this.mode == Mode.EXTERNAL) {
+            this.temperature = s.value();
+            getContext().getLog().info("TemperatureEnvironment updated from EXTERNAL to {}°C", this.temperature);
         }
+        return this;
+    }
 
-        getContext().getLog().info("TemperatureEnvironment updated to {}°C", String.format("%.2f", this.temperature));
+    private Behavior<TemperatureEnvironmentCommand> onTemperatureTick() {
+        if (this.mode == Mode.INTERNAL) {
+            // Simulate temperature change: random walk +/- 0.5 degrees
+            double change = (Math.random() - 0.5);
+            this.temperature += change;
+
+            // Clamp temperature between -10 and +35
+            if (this.temperature < -10) {
+                this.temperature = -10;
+            } else if (this.temperature > 35) {
+                this.temperature = 35;
+            }
+
+            getContext().getLog().info("TemperatureEnvironment updated to {}°C", String.format("%.2f", this.temperature));
+        }
         return this;
     }
 

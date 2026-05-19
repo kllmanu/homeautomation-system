@@ -24,6 +24,12 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
 
     public record SetWeather(Weather weather) implements WeatherEnvironmentCommand {}
 
+    public record SetWeatherExternal(Weather weather) implements WeatherEnvironmentCommand {}
+
+    public enum Mode {
+        INTERNAL, EXTERNAL, MANUAL
+    }
+
     public record WeatherResponse(Weather weather) {}
 
     private enum WeatherTick implements WeatherEnvironmentCommand {
@@ -31,21 +37,25 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
     }
 
     private Weather weather;
+    private final Mode mode;
 
-    public static Behavior<WeatherEnvironmentCommand> create(Weather initialWeather) {
+    public static Behavior<WeatherEnvironmentCommand> create(Weather initialWeather, Mode mode) {
         return Behaviors.setup(context -> {
             context.getSystem().receptionist().tell(Receptionist.register(WEATHER_ENVIRONMENT_SERVICE_KEY, context.getSelf()));
             return Behaviors.withTimers(timers -> {
-                timers.startTimerAtFixedRate(WeatherTick.INSTANCE, Duration.ofSeconds(10));
-                return new WeatherEnvironment(context, initialWeather);
+                if (mode == Mode.INTERNAL) {
+                    timers.startTimerAtFixedRate(WeatherTick.INSTANCE, Duration.ofSeconds(10));
+                }
+                return new WeatherEnvironment(context, initialWeather, mode);
             });
         });
     }
 
-    private WeatherEnvironment(ActorContext<WeatherEnvironmentCommand> context, Weather initialWeather) {
+    private WeatherEnvironment(ActorContext<WeatherEnvironmentCommand> context, Weather initialWeather, Mode mode) {
         super(context);
         this.weather = initialWeather;
-        getContext().getLog().info("WeatherEnvironment started with weather: {}", this.weather);
+        this.mode = mode;
+        getContext().getLog().info("WeatherEnvironment started in {} mode with weather: {}", this.mode, this.weather);
     }
 
     @Override
@@ -54,6 +64,7 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
                 .onMessage(WeatherTick.class, tick -> onWeatherTick())
                 .onMessage(GetWeather.class, this::onGetWeather)
                 .onMessage(SetWeather.class, this::onSetWeather)
+                .onMessage(SetWeatherExternal.class, this::onSetWeatherExternal)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
@@ -69,11 +80,21 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
         return this;
     }
 
+    private Behavior<WeatherEnvironmentCommand> onSetWeatherExternal(SetWeatherExternal s) {
+        if (this.mode == Mode.EXTERNAL) {
+            this.weather = s.weather();
+            getContext().getLog().info("WeatherEnvironment updated from EXTERNAL to {}", this.weather);
+        }
+        return this;
+    }
+
     private Behavior<WeatherEnvironmentCommand> onWeatherTick() {
-        // Change weather randomly
-        Weather[] weathers = Weather.values();
-        this.weather = weathers[(int) (Math.random() * weathers.length)];
-        getContext().getLog().info("WeatherEnvironment updated to weather: {}", this.weather);
+        if (this.mode == Mode.INTERNAL) {
+            // Change weather randomly
+            Weather[] weathers = Weather.values();
+            this.weather = weathers[(int) (Math.random() * weathers.length)];
+            getContext().getLog().info("WeatherEnvironment updated to weather: {}", this.weather);
+        }
         return this;
     }
 

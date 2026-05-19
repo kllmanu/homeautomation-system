@@ -7,8 +7,6 @@ import org.apache.pekko.actor.typed.ActorSystem;
 public class HomeAutomationSystem {
 
     public static void main(String[] args) {
-        ActorSystem<Void> home = ActorSystem.create(HomeAutomationController.create(), "HomeAutomation");
+        ActorSystem<Void> home = ActorSystem.create(HomeAutomationController.create(args), "HomeAutomation");
     }
-
-
 }
