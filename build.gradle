@@ -52,6 +52,7 @@ dependencies {
     implementation "com.github.jknack:handlebars:4.3.1"
     implementation "com.fasterxml.jackson.core:jackson-databind:2.17.0"
 
+    testImplementation "org.apache.pekko:pekko-actor-testkit-typed_3:$pekkoVersion"
     testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
 }

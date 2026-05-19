@@ -27,6 +27,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
 
     // mutable/immutable state variables of the actor defined here.
     private final String identifier;
+    private boolean poweredOn = false;
 
     // constructor initializing the actor
     public AirCondition(ActorContext<AirConditionCommand> context, String identifier) {
@@ -39,14 +40,28 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     @Override
     public Receive<AirConditionCommand> createReceive() {
         return newReceiveBuilder()
+                .onMessage(PowerAirCondition.class, this::onPowerAirCondition)
                 .onMessage(EnrichedTemperature.class, this::onReadTemperature)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
+    private Behavior<AirConditionCommand> onPowerAirCondition(PowerAirCondition p) {
+        getContext().getLog().info("Aircondition power set to {}", p.value());
+        this.poweredOn = p.value();
+        return Behaviors.same();
+    }
+
     private Behavior<AirConditionCommand> onReadTemperature(EnrichedTemperature r) {
         getContext().getLog().info("Aircondition reading {} {}", r.temperature().value(), r.temperature().unit());
-        // TODO: process temperature
+
+        if (r.temperature().value() > 20 && !poweredOn) {
+            getContext().getLog().info("Aircondition turned ON");
+            poweredOn = true;
+        } else if (r.temperature().value() < 20 && poweredOn) {
+            getContext().getLog().info("Aircondition turned OFF");
+            poweredOn = false;
+        }
 
         return Behaviors.same();
     }
