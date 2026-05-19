@@ -1,14 +1,24 @@
 package at.fhv.sysarch.lab2.homeautomation.environment;
 
+import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
 import org.apache.pekko.actor.typed.javadsl.*;
+import org.apache.pekko.actor.typed.receptionist.Receptionist;
+import org.apache.pekko.actor.typed.receptionist.ServiceKey;
 
 import java.time.Duration;
 
 public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironment.TemperatureEnvironmentCommand> {
 
+    public static final ServiceKey<TemperatureEnvironmentCommand> TEMPERATURE_ENVIRONMENT_SERVICE_KEY =
+            ServiceKey.create(TemperatureEnvironmentCommand.class, "TemperatureEnvironment");
+
     public interface TemperatureEnvironmentCommand {}
+
+    public record GetTemperature(ActorRef<TemperatureResponse> replyTo) implements TemperatureEnvironmentCommand {}
+
+    public record TemperatureResponse(double value) {}
 
     private enum TemperatureTick implements TemperatureEnvironmentCommand {
         INSTANCE
@@ -17,12 +27,13 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     private double temperature;
 
     public static Behavior<TemperatureEnvironmentCommand> create(double initialTemperature) {
-        return Behaviors.setup(context ->
-            Behaviors.withTimers(timers -> {
+        return Behaviors.setup(context -> {
+            context.getSystem().receptionist().tell(Receptionist.register(TEMPERATURE_ENVIRONMENT_SERVICE_KEY, context.getSelf()));
+            return Behaviors.withTimers(timers -> {
                 timers.startTimerAtFixedRate(TemperatureTick.INSTANCE, Duration.ofSeconds(5));
                 return new TemperatureEnvironment(context, initialTemperature);
-            })
-        );
+            });
+        });
     }
 
     private TemperatureEnvironment(ActorContext<TemperatureEnvironmentCommand> context, double initialTemperature) {
@@ -35,8 +46,14 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     public Receive<TemperatureEnvironmentCommand> createReceive() {
         return newReceiveBuilder()
                 .onMessage(TemperatureTick.class, tick -> onTemperatureTick())
+                .onMessage(GetTemperature.class, this::onGetTemperature)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<TemperatureEnvironmentCommand> onGetTemperature(GetTemperature g) {
+        g.replyTo().tell(new TemperatureResponse(this.temperature));
+        return this;
     }
 
     private Behavior<TemperatureEnvironmentCommand> onTemperatureTick() {

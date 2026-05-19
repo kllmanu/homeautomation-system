@@ -1,5 +1,6 @@
 package at.fhv.sysarch.lab2.homeautomation.devices;
 
+import at.fhv.sysarch.lab2.homeautomation.model.Temperature;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
@@ -17,7 +18,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     // commands our actor is able to receive
     public interface AirConditionCommand { }
     public record PowerAirCondition(boolean value) implements AirConditionCommand { }
-    public record EnrichedTemperature(double value, String unit) implements AirConditionCommand { }
+    public record EnrichedTemperature(Temperature temperature) implements AirConditionCommand { }
 
     // factory function called when a new instance of this actor is created
     public static Behavior<AirConditionCommand> create(String identifier) {
@@ -44,7 +45,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     }
 
     private Behavior<AirConditionCommand> onReadTemperature(EnrichedTemperature r) {
-        getContext().getLog().info("Aircondition reading {}", r.value);
+        getContext().getLog().info("Aircondition reading {} {}", r.temperature().value(), r.temperature().unit());
         // TODO: process temperature
 
         return Behaviors.same();
