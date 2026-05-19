@@ -99,17 +99,19 @@ public class DemoHttpServer extends AllDirectives {
                             return complete("AirCondition power set to " + power);
                         }))
                 ),
-                path("mediastation", () ->
-                        concat(
-                                path("play", () -> post(() -> {
-                                    this.mediaStation.tell(new MediaStation.PlayMovie());
-                                    return complete("MediaStation: Play movie");
-                                })),
-                                path("stop", () -> post(() -> {
-                                    this.mediaStation.tell(new MediaStation.StopMovie());
-                                    return complete("MediaStation: Stop movie");
-                                }))
-                        )
+                path("mediastation-play", () ->
+                        post(() -> {
+                            System.out.println("Server: Received MediaStation Play request");
+                            this.mediaStation.tell(new MediaStation.PlayMovie());
+                            return complete("MediaStation: Play movie");
+                        })
+                ),
+                path("mediastation-stop", () ->
+                        post(() -> {
+                            System.out.println("Server: Received MediaStation Stop request");
+                            this.mediaStation.tell(new MediaStation.StopMovie());
+                            return complete("MediaStation: Stop movie");
+                        })
                 ),
                 path("blinds", () ->
                         post(() -> formField("value", value -> {
