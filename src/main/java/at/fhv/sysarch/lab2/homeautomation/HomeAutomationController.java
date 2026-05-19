@@ -4,6 +4,7 @@ import at.fhv.sysarch.lab2.homeautomation.devices.AirCondition;
 import at.fhv.sysarch.lab2.homeautomation.devices.Blinds;
 import at.fhv.sysarch.lab2.homeautomation.devices.TemperatureSensor;
 import at.fhv.sysarch.lab2.homeautomation.devices.WeatherSensor;
+import at.fhv.sysarch.lab2.homeautomation.environment.ManualEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.environment.MqttEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.environment.TemperatureEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
@@ -33,16 +34,15 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         super(context);
         this.args = args;
 
-        TemperatureEnvironment.Mode tempMode = TemperatureEnvironment.Mode.INTERNAL;
-        WeatherEnvironment.Mode weatherMode = WeatherEnvironment.Mode.INTERNAL;
         boolean external = false;
+        boolean manual = false;
 
         for (String arg : args) {
-            if (arg.equals("--external")) {
+            getContext().getLog().info("Received argument: [{}]", arg);
+            if (arg.trim().equals("--external")) {
                 external = true;
-            } else if (arg.equals("--manual")) {
-                tempMode = TemperatureEnvironment.Mode.MANUAL;
-                weatherMode = WeatherEnvironment.Mode.MANUAL;
+            } else if (arg.trim().equals("--manual")) {
+                manual = true;
             }
         }
 
@@ -56,6 +56,7 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
         ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv;
 
         if (external) {
+            getContext().getLog().info("HomeAutomation Application starting in mode: EXTERNAL");
             ActorRef<MqttEnvironment.MqttEnvironmentCommand> mqttEnv = getContext().spawn(MqttEnvironment.create(), "mqttEnvironment");
             
             tempEnv = getContext().spawn(Behaviors.receiveMessage(cmd -> {
@@ -68,11 +69,24 @@ public class HomeAutomationController extends AbstractBehavior<Void> {
                 return Behaviors.same();
             }), "weatherProxy");
 
-            getContext().getLog().info("HomeAutomation Application started in mode: EXTERNAL");
+        } else if (manual) {
+            getContext().getLog().info("HomeAutomation Application starting in mode: MANUAL");
+            ActorRef<ManualEnvironment.ManualEnvironmentCommand> manualEnv = getContext().spawn(ManualEnvironment.create(), "manualEnvironment");
+
+            tempEnv = getContext().spawn(Behaviors.receiveMessage(cmd -> {
+                manualEnv.tell(new ManualEnvironment.WrappedTemperatureCommand(cmd));
+                return Behaviors.same();
+            }), "tempProxy");
+
+            weatherEnv = getContext().spawn(Behaviors.receiveMessage(cmd -> {
+                manualEnv.tell(new ManualEnvironment.WrappedWeatherCommand(cmd));
+                return Behaviors.same();
+            }), "weatherProxy");
+
         } else {
-            tempEnv = getContext().spawn(TemperatureEnvironment.create(20.0, tempMode), "temperatureEnvironment");
-            weatherEnv = getContext().spawn(WeatherEnvironment.create(WeatherEnvironment.Weather.SUNNY, weatherMode), "weatherEnvironment");
-            getContext().getLog().info("HomeAutomation Application started in mode: {}", tempMode);
+            getContext().getLog().info("HomeAutomation Application starting in mode: INTERNAL");
+            tempEnv = getContext().spawn(TemperatureEnvironment.create(20.0), "temperatureEnvironment");
+            weatherEnv = getContext().spawn(WeatherEnvironment.create(WeatherEnvironment.Weather.SUNNY), "weatherEnvironment");
         }
 
         final Http http = Http.get(context.getSystem());

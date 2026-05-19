@@ -33,6 +33,7 @@ public class WeatherSensor extends AbstractBehavior<WeatherSensor.WeatherCommand
 
     private final ActorRef<Blinds.BlindsCommand> blinds;
     private ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment;
+    private WeatherEnvironment.Weather lastWeather = WeatherEnvironment.Weather.UNKNOWN;
 
     public WeatherSensor(ActorContext<WeatherCommand> context, ActorRef<Blinds.BlindsCommand> blinds) {
         super(context);
@@ -86,8 +87,9 @@ public class WeatherSensor extends AbstractBehavior<WeatherSensor.WeatherCommand
     }
 
     private Behavior<WeatherCommand> onWeatherResponse(WeatherEnvironment.WeatherResponse response) {
-        if (response.weather() != null) {
+        if (response.weather() != null && response.weather() != lastWeather && response.weather() != WeatherEnvironment.Weather.UNKNOWN) {
             getContext().getLog().info("WeatherSensor measured: {}", response.weather());
+            this.lastWeather = response.weather();
             WeatherCondition wrapped = new WeatherCondition(response.weather(), "Condition");
             this.blinds.tell(new Blinds.WeatherChanged(wrapped));
         }

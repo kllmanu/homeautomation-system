@@ -33,6 +33,7 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
 
     private final ActorRef<AirCondition.AirConditionCommand> airCondition;
     private ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment;
+    private double lastTemperature = Double.NaN;
 
     public TemperatureSensor(ActorContext<TemperatureCommand> context, ActorRef<AirCondition.AirConditionCommand> airCondition) {
         super(context);
@@ -86,9 +87,12 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
     }
 
     private Behavior<TemperatureCommand> onTemperatureResponse(TemperatureEnvironment.TemperatureResponse response) {
-        getContext().getLog().info("TemperatureSensor measured: {}°C", response.value());
-        Temperature wrapped = new Temperature(response.value(), "Celsius");
-        this.airCondition.tell(new AirCondition.EnrichedTemperature(wrapped));
+        if (response.value() != lastTemperature && !Double.isNaN(response.value())) {
+            getContext().getLog().info("TemperatureSensor measured: {}°C", response.value());
+            this.lastTemperature = response.value();
+            Temperature wrapped = new Temperature(response.value(), "Celsius");
+            this.airCondition.tell(new AirCondition.EnrichedTemperature(wrapped));
+        }
         return this;
     }
 

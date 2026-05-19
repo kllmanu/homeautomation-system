@@ -67,7 +67,9 @@ tasks.withType(Copy).configureEach {
 
 run {
     standardInput = System.in
-    setArgs(System.getProperty("exec.args", "").split().toList())
+    if (System.getProperty("exec.args") != null) {
+        args System.getProperty("exec.args").split().toList()
+    }
 }
 
 test {
@@ -77,4 +79,10 @@ test {
 task runServer(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     main = 'at.fhv.sysarch.lab2.homeautomation.grpcdemo.GreeterServer'
+}
+
+task runRecon(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'at.fhv.sysarch.lab2.homeautomation.external.MqttReconnaissance'
+    standardInput = System.in
 }
