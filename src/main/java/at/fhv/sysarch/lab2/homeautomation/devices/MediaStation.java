@@ -14,6 +14,8 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
 
     public record PlayMovie() implements MediaStationCommand {}
     public record StopMovie() implements MediaStationCommand {}
+    public record Subscribe(ActorRef<MediaStationStateChanged> subscriber) implements MediaStationCommand {}
+    public record MediaStationStateChanged(boolean playing) {}
 
     public static Behavior<MediaStationCommand> create(ActorRef<Blinds.BlindsCommand> blinds) {
         return Behaviors.setup(context -> new MediaStation(context, blinds));
@@ -21,6 +23,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
 
     private final ActorRef<Blinds.BlindsCommand> blinds;
     private boolean moviePlaying = false;
+    private ActorRef<MediaStationStateChanged> subscriber;
 
     private MediaStation(ActorContext<MediaStationCommand> context, ActorRef<Blinds.BlindsCommand> blinds) {
         super(context);
@@ -33,8 +36,21 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
         return newReceiveBuilder()
                 .onMessage(PlayMovie.class, this::onPlayMovie)
                 .onMessage(StopMovie.class, this::onStopMovie)
+                .onMessage(Subscribe.class, this::onSubscribe)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<MediaStationCommand> onSubscribe(Subscribe s) {
+        this.subscriber = s.subscriber();
+        this.subscriber.tell(new MediaStationStateChanged(moviePlaying));
+        return this;
+    }
+
+    private void notifySubscriber() {
+        if (this.subscriber != null) {
+            this.subscriber.tell(new MediaStationStateChanged(moviePlaying));
+        }
     }
 
     private Behavior<MediaStationCommand> onPlayMovie(PlayMovie p) {
@@ -44,6 +60,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
             getContext().getLog().info("MediaStation: Starting movie");
             moviePlaying = true;
             blinds.tell(new Blinds.MediaStationPlaying(true));
+            notifySubscriber();
         }
         return this;
     }
@@ -53,6 +70,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
             getContext().getLog().info("MediaStation: Stopping movie");
             moviePlaying = false;
             blinds.tell(new Blinds.MediaStationPlaying(false));
+            notifySubscriber();
         } else {
             getContext().getLog().warn("MediaStation: No movie is playing!");
         }

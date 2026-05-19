@@ -9,11 +9,25 @@ import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.io.ClassPathTemplateLoader;
 import com.github.jknack.handlebars.io.TemplateLoader;
+import org.apache.pekko.NotUsed;
 import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.javadsl.ActorContext;
+import org.apache.pekko.actor.typed.javadsl.Adapter;
+import org.apache.pekko.actor.typed.javadsl.Behaviors;
+import org.apache.pekko.http.javadsl.marshalling.sse.EventStreamMarshalling;
 import org.apache.pekko.http.javadsl.model.ContentTypes;
 import org.apache.pekko.http.javadsl.model.HttpEntities;
+import org.apache.pekko.http.javadsl.model.sse.ServerSentEvent;
 import org.apache.pekko.http.javadsl.server.AllDirectives;
 import org.apache.pekko.http.javadsl.server.Route;
+import org.apache.pekko.japi.Pair;
+import org.apache.pekko.stream.Materializer;
+import org.apache.pekko.stream.javadsl.BroadcastHub;
+import org.apache.pekko.stream.javadsl.Keep;
+import org.apache.pekko.stream.javadsl.Source;
+import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
+import org.apache.pekko.stream.OverflowStrategy;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -29,18 +43,56 @@ public class DemoHttpServer extends AllDirectives {
     private final String mode;
     private final Template indexTemplate;
 
+    // SSE related
+    private final Source<ServerSentEvent, NotUsed> eventSource;
+
     public DemoHttpServer(ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment,
                           ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment,
                           ActorRef<AirCondition.AirConditionCommand> airCondition,
                           ActorRef<MediaStation.MediaStationCommand> mediaStation,
                           ActorRef<Blinds.BlindsCommand> blinds,
-                          String mode) {
+                          String mode,
+                          ActorContext<Void> context) {
         this.temperatureEnvironment = temperatureEnvironment;
         this.weatherEnvironment = weatherEnvironment;
         this.airCondition = airCondition;
         this.mediaStation = mediaStation;
         this.blinds = blinds;
         this.mode = mode;
+
+        // Setup SSE with BroadcastHub for multiple clients
+        Materializer mat = Materializer.matFromSystem(Adapter.toClassic(context.getSystem()));
+        
+        Source<ServerSentEvent, SourceQueueWithComplete<ServerSentEvent>> queueSource = 
+            Source.queue(100, OverflowStrategy.dropTail());
+        
+        Pair<SourceQueueWithComplete<ServerSentEvent>, Source<ServerSentEvent, NotUsed>> pair = 
+            queueSource.toMat(BroadcastHub.of(ServerSentEvent.class), Keep.both()).run(mat);
+            
+        SourceQueueWithComplete<ServerSentEvent> queue = pair.first();
+        this.eventSource = pair.second();
+
+        // Spawn broadcaster actor as child of the controller
+        context.spawn(Behaviors.setup(broadcasterContext -> {
+            airCondition.tell(new AirCondition.Subscribe(broadcasterContext.messageAdapter(AirCondition.AirConditionStateChanged.class, msg -> msg)));
+            blinds.tell(new Blinds.Subscribe(broadcasterContext.messageAdapter(Blinds.BlindsStateChanged.class, msg -> msg)));
+            mediaStation.tell(new MediaStation.Subscribe(broadcasterContext.messageAdapter(MediaStation.MediaStationStateChanged.class, msg -> msg)));
+
+            return Behaviors.receive(Object.class)
+                    .onMessage(AirCondition.AirConditionStateChanged.class, msg -> {
+                        queue.offer(ServerSentEvent.create(msg.poweredOn() ? "ON" : "OFF", "aircondition"));
+                        return Behaviors.same();
+                    })
+                    .onMessage(Blinds.BlindsStateChanged.class, msg -> {
+                        queue.offer(ServerSentEvent.create(msg.closed() ? "CLOSED" : "OPEN", "blinds"));
+                        return Behaviors.same();
+                    })
+                    .onMessage(MediaStation.MediaStationStateChanged.class, msg -> {
+                        queue.offer(ServerSentEvent.create(msg.playing() ? "PLAYING" : "IDLE", "mediastation"));
+                        return Behaviors.same();
+                    })
+                    .build();
+        }), "sseBroadcaster");
 
         TemplateLoader loader = new ClassPathTemplateLoader("/templates", ".hbs");
         Handlebars handlebars = new Handlebars(loader);
@@ -66,6 +118,9 @@ public class DemoHttpServer extends AllDirectives {
                                 return complete("Error rendering template: " + e.getMessage());
                             }
                         })
+                ),
+                path("events", () ->
+                        get(() -> completeOK(eventSource, EventStreamMarshalling.toEventStream()))
                 ),
                 path("hello", () -> get(() -> complete("<h1>Say hello to pekko-http</h1>"))),
                 path("temperature", () ->

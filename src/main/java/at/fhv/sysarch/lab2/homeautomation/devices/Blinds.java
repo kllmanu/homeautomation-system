@@ -2,6 +2,7 @@ package at.fhv.sysarch.lab2.homeautomation.devices;
 
 import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.model.WeatherCondition;
+import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
@@ -16,6 +17,8 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     public record WeatherChanged(WeatherCondition weatherCondition) implements BlindsCommand {}
     public record MediaStationPlaying(boolean playing) implements BlindsCommand {}
     public record ControlBlinds(boolean close) implements BlindsCommand {}
+    public record Subscribe(ActorRef<BlindsStateChanged> subscriber) implements BlindsCommand {}
+    public record BlindsStateChanged(boolean closed) {}
 
     public static Behavior<BlindsCommand> create() {
         return Behaviors.setup(Blinds::new);
@@ -24,6 +27,7 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     private boolean blindsClosed = false;
     private boolean moviePlaying = false;
     private WeatherEnvironment.Weather lastWeather = WeatherEnvironment.Weather.UNKNOWN;
+    private ActorRef<BlindsStateChanged> subscriber;
 
     private Blinds(ActorContext<BlindsCommand> context) {
         super(context);
@@ -36,8 +40,21 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
                 .onMessage(WeatherChanged.class, this::onWeatherChanged)
                 .onMessage(MediaStationPlaying.class, this::onMediaStationPlaying)
                 .onMessage(ControlBlinds.class, this::onControlBlinds)
+                .onMessage(Subscribe.class, this::onSubscribe)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<BlindsCommand> onSubscribe(Subscribe s) {
+        this.subscriber = s.subscriber();
+        this.subscriber.tell(new BlindsStateChanged(blindsClosed));
+        return this;
+    }
+
+    private void notifySubscriber() {
+        if (this.subscriber != null) {
+            this.subscriber.tell(new BlindsStateChanged(blindsClosed));
+        }
     }
 
     private Behavior<BlindsCommand> onWeatherChanged(WeatherChanged r) {
@@ -58,6 +75,7 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     }
 
     private Behavior<BlindsCommand> onControlBlinds(ControlBlinds c) {
+        boolean previousState = blindsClosed;
         if (c.close() && !blindsClosed) {
             getContext().getLog().info("Blinds: Closing (Manual)");
             blindsClosed = true;
@@ -67,10 +85,15 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
         } else {
             getContext().getLog().info("Blinds: Already {}", c.close() ? "closed" : "open");
         }
+
+        if (previousState != blindsClosed) {
+            notifySubscriber();
+        }
         return this;
     }
 
     private void updateBlindsState() {
+        boolean previousState = blindsClosed;
         boolean shouldBeClosed = moviePlaying || lastWeather == WeatherEnvironment.Weather.SUNNY;
 
         if (shouldBeClosed && !blindsClosed) {
@@ -79,6 +102,10 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
         } else if (!shouldBeClosed && blindsClosed) {
             getContext().getLog().info("Blinds: Opening");
             blindsClosed = false;
+        }
+
+        if (previousState != blindsClosed) {
+            notifySubscriber();
         }
     }
 
