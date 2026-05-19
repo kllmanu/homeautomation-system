@@ -53,7 +53,7 @@ public class DemoHttpServer extends AllDirectives {
                 path("hello", () -> get(() -> complete("<h1>Say hello to pekko-http</h1>"))),
                 path("temperature", () ->
                         post(() ->
-                                parameter("value", value -> {
+                                formField("value", value -> {
                                     double temp = Double.parseDouble(value);
                                     this.temperatureEnvironment.tell(new TemperatureEnvironment.SetTemperature(temp));
                                     return complete("Temperature set to " + temp);
@@ -62,7 +62,7 @@ public class DemoHttpServer extends AllDirectives {
                 ),
                 path("weather", () ->
                         post(() ->
-                                parameter("value", value -> {
+                                formField("value", value -> {
                                     WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.valueOf(value.toUpperCase());
                                     this.weatherEnvironment.tell(new WeatherEnvironment.SetWeather(weather));
                                     return complete("Weather set to " + weather);
