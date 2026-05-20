@@ -25,6 +25,10 @@ Mit [mqttcli](https://packages.fedoraproject.org/pkgs/mqttcli/mqttcli/) schauen 
 sub -broker tcp://10.0.40.161:1883 -topic "#"
 ```
 
+## Architektur
+
+![Klassendiagramm](docs/class_diagram.svg)
+
 ## Interaktionsmuster
 
 Für detailliertere Informationen siehe die offizielle [Pekko Dokumentation zu Interaktionsmustern](https://pekko.apache.org/docs/pekko/current/typed/interaction-patterns.html).
@@ -43,9 +47,17 @@ Wird verwendet, wenn der Absender eine Bestätigung oder Daten vom Actor benöti
 
 ### 3. [Publish/Subscribe (Distributed Pub-Sub)](https://pekko.apache.org/docs/pekko/current/typed/actor-discovery.html#receptionist)
 Wird für entkoppelte Kommunikation verwendet, bei der mehrere Actoren auf dasselbe Ereignis reagieren müssen. (In diesem Projekt realisiert über Pekko Topics).
+
+![Sequenzdiagramm - Medienwiedergabe](docs/movie_playback_sequence.svg)
+
 - **Beispiel**: Der Wettersensor (`WeatherSensor`) veröffentlicht `WeatherChanged` auf einem `weather-topic`. Alle Jalousien-Actoren (`Blinds`) im System abonnieren dieses Topic, um ihren Zustand automatisch anzupassen.
 - **Beispiel**: Die `MediaStation` veröffentlicht `MediaStationPlaying` auf einem globalen `media-topic`, um sicherzustellen, dass sich alle Jalousien während eines Films schließen.
 
+![Sequenzdiagramm - Umgebungssensoren](docs/environment_sensing_sequence.svg)
+
 ### 4. [Per-Session Child Actor](https://pekko.apache.org/docs/pekko/current/typed/interaction-patterns.html#per-session-child-actor)
 Wird verwendet, um langlaufende oder externe Aufgaben an einen dedizierten, kurzlebigen Actor zu delegieren.
+
+![Sequenzdiagramm - Kühlschrank Bestellung](docs/fridge_ordering_sequence.svg)
+
 - **Beispiel**: Wenn der Kühlschrank (`Fridge`) einen `OrderProduct`-Befehl erhält, erzeugt er einen einmaligen `OrderProcessor`-Child-Actor. Dieser übernimmt die gRPC-Kommunikation mit dem Grocery Store und beendet sich selbst, nachdem das Ergebnis an den Parent-Actor gesendet wurde.
