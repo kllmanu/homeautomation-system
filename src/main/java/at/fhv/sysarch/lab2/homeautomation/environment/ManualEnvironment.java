@@ -19,8 +19,8 @@ public class ManualEnvironment extends AbstractBehavior<ManualEnvironment.Manual
     public record WrappedTemperatureCommand(TemperatureEnvironment.TemperatureEnvironmentCommand cmd) implements ManualEnvironmentCommand {}
     public record WrappedWeatherCommand(WeatherEnvironment.WeatherEnvironmentCommand cmd) implements ManualEnvironmentCommand {}
 
-    private double temperature = Double.NaN;
-    private WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.UNKNOWN;
+    private double temperature = 16.0;
+    private WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.SUNNY;
     private final List<ActorRef<TemperatureEnvironment.TemperatureResponse>> tempSubscribers = new ArrayList<>();
     private final List<ActorRef<WeatherEnvironment.WeatherResponse>> weatherSubscribers = new ArrayList<>();
 
