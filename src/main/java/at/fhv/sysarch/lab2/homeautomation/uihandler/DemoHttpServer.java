@@ -56,7 +56,7 @@ public class DemoHttpServer extends AllDirectives {
                           ActorRef<MediaStation.MediaStationCommand> mediaStation,
                           ActorRef<Blinds.BlindsCommand> blinds,
                           String mode,
-                          ActorContext<Void> context) {
+                          ActorContext<?> context) {
         this.temperatureEnvironment = temperatureEnvironment;
         this.weatherEnvironment = weatherEnvironment;
         this.airCondition = airCondition;

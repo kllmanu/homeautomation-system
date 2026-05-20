@@ -10,6 +10,8 @@ import org.apache.pekko.actor.typed.receptionist.Receptionist;
 
 import java.time.Duration;
 
+import org.apache.pekko.actor.typed.pubsub.Topic;
+
 public class WeatherSensor extends AbstractBehavior<WeatherSensor.WeatherCommand> {
 
     public interface WeatherCommand { }
@@ -22,22 +24,22 @@ public class WeatherSensor extends AbstractBehavior<WeatherSensor.WeatherCommand
 
     private record WrappedWeatherResponse(WeatherEnvironment.WeatherResponse response) implements WeatherCommand { }
 
-    public static Behavior<WeatherCommand> create(ActorRef<Blinds.BlindsCommand> blinds) {
+    public static Behavior<WeatherCommand> create(ActorRef<Topic.Command<Blinds.WeatherChanged>> weatherTopic) {
         return Behaviors.setup(context ->
                 Behaviors.withTimers(timers -> {
                     timers.startTimerAtFixedRate(SenseWeather.INSTANCE, Duration.ofSeconds(5));
-                    return new WeatherSensor(context, blinds);
+                    return new WeatherSensor(context, weatherTopic);
                 })
         );
     }
 
-    private final ActorRef<Blinds.BlindsCommand> blinds;
+    private final ActorRef<Topic.Command<Blinds.WeatherChanged>> weatherTopic;
     private ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment;
     private WeatherEnvironment.Weather lastWeather = WeatherEnvironment.Weather.UNKNOWN;
 
-    public WeatherSensor(ActorContext<WeatherCommand> context, ActorRef<Blinds.BlindsCommand> blinds) {
+    public WeatherSensor(ActorContext<WeatherCommand> context, ActorRef<Topic.Command<Blinds.WeatherChanged>> weatherTopic) {
         super(context);
-        this.blinds = blinds;
+        this.weatherTopic = weatherTopic;
 
         // Subscribe to WeatherEnvironment listings
         ActorRef<Receptionist.Listing> listingResponseAdapter = getContext().messageAdapter(Receptionist.Listing.class, WrappedListing::new);
@@ -91,7 +93,7 @@ public class WeatherSensor extends AbstractBehavior<WeatherSensor.WeatherCommand
             getContext().getLog().info("WeatherSensor measured: {}", response.weather());
             this.lastWeather = response.weather();
             WeatherCondition wrapped = new WeatherCondition(response.weather(), "Condition");
-            this.blinds.tell(new Blinds.WeatherChanged(wrapped));
+            this.weatherTopic.tell(Topic.publish(new Blinds.WeatherChanged(wrapped)));
         }
         return this;
     }

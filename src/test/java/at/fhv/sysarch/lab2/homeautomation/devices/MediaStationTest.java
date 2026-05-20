@@ -8,6 +8,8 @@ import org.apache.pekko.actor.typed.ActorRef;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
+import org.apache.pekko.actor.typed.pubsub.Topic;
+
 public class MediaStationTest {
 
     static final ActorTestKit testKit = ActorTestKit.create();
@@ -19,8 +21,11 @@ public class MediaStationTest {
 
     @Test
     public void testMediaStationControlLogic() {
+        ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic = testKit.spawn(Topic.create(Blinds.MediaStationPlaying.class, "test-media-topic"));
         ActorRef<Blinds.BlindsCommand> blinds = testKit.spawn(Blinds.create());
-        ActorRef<MediaStation.MediaStationCommand> mediaStation = testKit.spawn(MediaStation.create(blinds));
+        mediaTopic.tell(Topic.subscribe(blinds.narrow()));
+        
+        ActorRef<MediaStation.MediaStationCommand> mediaStation = testKit.spawn(MediaStation.create(mediaTopic));
 
         // 1. Play movie -> Blinds should close
         LoggingTestKit.info("Blinds: Closing")

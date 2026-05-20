@@ -10,6 +10,8 @@ import org.apache.pekko.actor.typed.receptionist.Receptionist;
 
 import java.time.Duration;
 
+import org.apache.pekko.actor.typed.pubsub.Topic;
+
 public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.TemperatureCommand> {
 
     public interface TemperatureCommand { }
@@ -22,22 +24,22 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
 
     private record WrappedTemperatureResponse(TemperatureEnvironment.TemperatureResponse response) implements TemperatureCommand { }
 
-    public static Behavior<TemperatureCommand> create(ActorRef<AirCondition.AirConditionCommand> airCondition) {
+    public static Behavior<TemperatureCommand> create(ActorRef<Topic.Command<AirCondition.EnrichedTemperature>> temperatureTopic) {
         return Behaviors.setup(context ->
             Behaviors.withTimers(timers -> {
                 timers.startTimerAtFixedRate(SenseTemperature.INSTANCE, Duration.ofSeconds(2));
-                return new TemperatureSensor(context, airCondition);
+                return new TemperatureSensor(context, temperatureTopic);
             })
         );
     }
 
-    private final ActorRef<AirCondition.AirConditionCommand> airCondition;
+    private final ActorRef<Topic.Command<AirCondition.EnrichedTemperature>> temperatureTopic;
     private ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment;
     private double lastTemperature = Double.NaN;
 
-    public TemperatureSensor(ActorContext<TemperatureCommand> context, ActorRef<AirCondition.AirConditionCommand> airCondition) {
+    public TemperatureSensor(ActorContext<TemperatureCommand> context, ActorRef<Topic.Command<AirCondition.EnrichedTemperature>> temperatureTopic) {
         super(context);
-        this.airCondition = airCondition;
+        this.temperatureTopic = temperatureTopic;
 
         // Subscribe to TemperatureEnvironment listings
         ActorRef<Receptionist.Listing> listingResponseAdapter = getContext().messageAdapter(Receptionist.Listing.class, WrappedListing::new);
@@ -91,7 +93,7 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
             getContext().getLog().info("TemperatureSensor measured: {}°C", response.value());
             this.lastTemperature = response.value();
             Temperature wrapped = new Temperature(response.value(), "Celsius");
-            this.airCondition.tell(new AirCondition.EnrichedTemperature(wrapped));
+            this.temperatureTopic.tell(Topic.publish(new AirCondition.EnrichedTemperature(wrapped)));
         }
         return this;
     }

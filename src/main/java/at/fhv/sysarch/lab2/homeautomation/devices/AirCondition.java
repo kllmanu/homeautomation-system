@@ -9,12 +9,17 @@ import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 
+import org.apache.pekko.actor.typed.receptionist.Receptionist;
+import org.apache.pekko.actor.typed.receptionist.ServiceKey;
+
 /**
  * Note: This is an incomplete demonstration how a temperature could be implemented.
  * You may (actually, you should) change the logic so that it fits into your own actor system.
  * This class only acts as a demonstration for you to see, how an actor in java && pekko is structured.
  */
 public class AirCondition extends AbstractBehavior<AirCondition.AirConditionCommand> {
+
+    public static final ServiceKey<AirConditionCommand> SERVICE_KEY = ServiceKey.create(AirConditionCommand.class, "AirCondition");
 
     // commands our actor is able to receive
     public interface AirConditionCommand { }
@@ -26,7 +31,10 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
 
     // factory function called when a new instance of this actor is created
     public static Behavior<AirConditionCommand> create(String identifier) {
-        return Behaviors.setup(context -> new AirCondition(context, identifier));
+        return Behaviors.setup(context -> {
+            context.getSystem().receptionist().tell(Receptionist.register(SERVICE_KEY, context.getSelf()));
+            return new AirCondition(context, identifier);
+        });
     }
 
     // mutable/immutable state variables of the actor defined here.

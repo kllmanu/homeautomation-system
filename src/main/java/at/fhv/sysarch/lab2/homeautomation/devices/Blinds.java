@@ -10,7 +10,12 @@ import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 
+import org.apache.pekko.actor.typed.receptionist.Receptionist;
+import org.apache.pekko.actor.typed.receptionist.ServiceKey;
+
 public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
+
+    public static final ServiceKey<BlindsCommand> SERVICE_KEY = ServiceKey.create(BlindsCommand.class, "Blinds");
 
     public interface BlindsCommand {}
 
@@ -22,7 +27,10 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     public record ReadState(ActorRef<BlindsStateChanged> replyTo) implements BlindsCommand {}
 
     public static Behavior<BlindsCommand> create() {
-        return Behaviors.setup(Blinds::new);
+        return Behaviors.setup(context -> {
+            context.getSystem().receptionist().tell(Receptionist.register(SERVICE_KEY, context.getSelf()));
+            return new Blinds(context);
+        });
     }
 
     private boolean blindsClosed = false;

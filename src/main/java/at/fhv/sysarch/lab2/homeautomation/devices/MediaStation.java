@@ -8,7 +8,14 @@ import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 
+import org.apache.pekko.actor.typed.receptionist.Receptionist;
+import org.apache.pekko.actor.typed.receptionist.ServiceKey;
+
+import org.apache.pekko.actor.typed.pubsub.Topic;
+
 public class MediaStation extends AbstractBehavior<MediaStation.MediaStationCommand> {
+
+    public static final ServiceKey<MediaStationCommand> SERVICE_KEY = ServiceKey.create(MediaStationCommand.class, "MediaStation");
 
     public interface MediaStationCommand {}
 
@@ -18,17 +25,20 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
     public record MediaStationStateChanged(boolean playing) {}
     public record ReadState(ActorRef<MediaStationStateChanged> replyTo) implements MediaStationCommand {}
 
-    public static Behavior<MediaStationCommand> create(ActorRef<Blinds.BlindsCommand> blinds) {
-        return Behaviors.setup(context -> new MediaStation(context, blinds));
+    public static Behavior<MediaStationCommand> create(ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic) {
+        return Behaviors.setup(context -> {
+            context.getSystem().receptionist().tell(Receptionist.register(SERVICE_KEY, context.getSelf()));
+            return new MediaStation(context, mediaTopic);
+        });
     }
 
-    private final ActorRef<Blinds.BlindsCommand> blinds;
+    private final ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic;
     private boolean moviePlaying = false;
     private ActorRef<MediaStationStateChanged> subscriber;
 
-    private MediaStation(ActorContext<MediaStationCommand> context, ActorRef<Blinds.BlindsCommand> blinds) {
+    private MediaStation(ActorContext<MediaStationCommand> context, ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic) {
         super(context);
-        this.blinds = blinds;
+        this.mediaTopic = mediaTopic;
         getContext().getLog().info("MediaStation actor started");
     }
 
@@ -66,7 +76,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
         } else {
             getContext().getLog().info("MediaStation: Starting movie");
             moviePlaying = true;
-            blinds.tell(new Blinds.MediaStationPlaying(true));
+            this.mediaTopic.tell(Topic.publish(new Blinds.MediaStationPlaying(true)));
             notifySubscriber();
         }
         return this;
@@ -76,7 +86,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
         if (moviePlaying) {
             getContext().getLog().info("MediaStation: Stopping movie");
             moviePlaying = false;
-            blinds.tell(new Blinds.MediaStationPlaying(false));
+            this.mediaTopic.tell(Topic.publish(new Blinds.MediaStationPlaying(false)));
             notifySubscriber();
         } else {
             getContext().getLog().warn("MediaStation: No movie is playing!");
