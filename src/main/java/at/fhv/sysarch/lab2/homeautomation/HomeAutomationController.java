@@ -6,6 +6,8 @@ import at.fhv.sysarch.lab2.homeautomation.devices.MediaStation;
 import at.fhv.sysarch.lab2.homeautomation.environment.EnvironmentManager;
 import at.fhv.sysarch.lab2.homeautomation.environment.TemperatureEnvironment;
 import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
+import at.fhv.sysarch.lab2.homeautomation.fridge.Fridge;
+import at.fhv.sysarch.lab2.homeautomation.fridge.FridgeModels;
 import at.fhv.sysarch.lab2.homeautomation.room.Space;
 import at.fhv.sysarch.lab2.homeautomation.uihandler.DemoHttpServer;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -30,6 +32,7 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
     private record MediaStationListing(Receptionist.Listing listing) implements ControllerCommand {}
     private record TempEnvListing(Receptionist.Listing listing) implements ControllerCommand {}
     private record WeatherEnvListing(Receptionist.Listing listing) implements ControllerCommand {}
+    private record FridgeListing(Receptionist.Listing listing) implements ControllerCommand {}
     private enum Shutdown implements ControllerCommand { INSTANCE }
 
     private final String[] args;
@@ -38,6 +41,7 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
     private ActorRef<MediaStation.MediaStationCommand> mediaStation;
     private ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempEnv;
     private ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv;
+    private ActorRef<FridgeModels.FridgeCommand> fridge;
     private CompletionStage<ServerBinding> serverBinding;
 
     private boolean external = false;
@@ -98,6 +102,12 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
                     self.tell(new WeatherEnvListing(listing));
                     return Behaviors.same();
                 }), "weatherEnvListingProxy")));
+
+        getContext().getSystem().receptionist().tell(Receptionist.subscribe(Fridge.FRIDGE_SERVICE_KEY, 
+                getContext().spawn(Behaviors.receiveMessage(listing -> {
+                    self.tell(new FridgeListing(listing));
+                    return Behaviors.same();
+                }), "fridgeListingProxy")));
     }
 
     @Override
@@ -108,6 +118,7 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
                 .onMessage(MediaStationListing.class, m -> onMediaStationListing(m.listing))
                 .onMessage(TempEnvListing.class, m -> onTempEnvListing(m.listing))
                 .onMessage(WeatherEnvListing.class, m -> onWeatherEnvListing(m.listing))
+                .onMessage(FridgeListing.class, m -> onFridgeListing(m.listing))
                 .onMessage(Shutdown.class, m -> onShutdown())
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
@@ -155,10 +166,16 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
         return this;
     }
 
+    private Behavior<ControllerCommand> onFridgeListing(Receptionist.Listing listing) {
+        this.fridge = listing.getServiceInstances(Fridge.FRIDGE_SERVICE_KEY).stream().findFirst().orElse(null);
+        checkIfAllReady();
+        return this;
+    }
+
     private boolean serverStarted = false;
 
     private void checkIfAllReady() {
-        if (!serverStarted && airCondition != null && blinds != null && mediaStation != null && tempEnv != null && weatherEnv != null) {
+        if (!serverStarted && airCondition != null && blinds != null && mediaStation != null && tempEnv != null && weatherEnv != null && fridge != null) {
             startServer();
             serverStarted = true;
         }
@@ -168,7 +185,7 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
         final Http http = Http.get(getContext().getSystem());
         String modeString = external ? "EXTERNAL" : (manual ? "MANUAL" : "INTERNAL");
         
-        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, airCondition, mediaStation, blinds, modeString, (ActorContext) getContext());
+        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, airCondition, mediaStation, blinds, fridge, modeString, (ActorContext) getContext());
         this.serverBinding = http.newServerAt("localhost", 8084).bind(app.createRoute(getContext().getSystem()));
 
         getContext().getLog().info("Server started at http://localhost:8084/");

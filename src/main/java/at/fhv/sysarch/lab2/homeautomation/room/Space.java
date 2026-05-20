@@ -23,6 +23,7 @@ public class Space extends AbstractBehavior<Space.SpaceCommand> {
 
         // For now, just spawn one room
         getContext().spawn(Room.create("LivingRoom"), "livingRoom");
+        getContext().spawn(Room.create("Kitchen"), "kitchen");
     }
 
     @Override

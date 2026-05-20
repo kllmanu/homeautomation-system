@@ -16,6 +16,9 @@ import java.util.UUID;
 
 import org.apache.pekko.actor.typed.pubsub.Topic;
 
+import at.fhv.sysarch.lab2.homeautomation.fridge.Fridge;
+import at.fhv.sysarch.lab2.homeautomation.fridge.FridgeModels;
+
 public class Room extends AbstractBehavior<Room.RoomCommand> {
 
     public interface RoomCommand {}
@@ -30,6 +33,11 @@ public class Room extends AbstractBehavior<Room.RoomCommand> {
         super(context);
         this.roomName = roomName;
         getContext().getLog().info("Room {} started", roomName);
+
+        // Spawn Fridge if Kitchen
+        if (roomName.equalsIgnoreCase("Kitchen")) {
+            getContext().spawn(Fridge.create(10, 20.0), "fridge");
+        }
 
         // Spawn Topics
         ActorRef<Topic.Command<AirCondition.EnrichedTemperature>> tempTopic = 

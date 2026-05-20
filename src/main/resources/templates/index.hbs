@@ -168,14 +168,70 @@
             </form>
         </div>
 
-        <div style="margin-bottom: 1em;">
-            <h3>Blinds <span id="blinds-status" class="status-badge {{blindsClass}}">{{blindsState}}</span></h3>
-            <form action="/blinds" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="true" type="submit">Close Blinds</button>
-            </form>
-            <form action="/blinds" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="false" type="submit">Open Blinds</button>
-            </form>
+    <div class="section">
+        <h3>Blinds <span id="blinds-status" class="status-badge {{blindsClass}}">{{blindsState}}</span></h3>
+        <form action="/blinds" method="post" style="display: inline;" class="ajax-form">
+            <button name="value" value="true" type="submit">Close Blinds</button>
+        </form>
+        <form action="/blinds" method="post" style="display: inline;" class="ajax-form">
+            <button name="value" value="false" type="submit">Open Blinds</button>
+        </form>
+    </div>
+
+    <div class="section" style="border-color: #ffaa00; box-shadow: 0 0 10px rgba(255, 170, 0, 0.3);">
+        <h2 style="color: #ffaa00; text-shadow: 0 0 5px #ffaa00;">Smart Fridge :: Kitchen</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2em;">
+            <div>
+                <h3>Inventory</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--jarvis-cyan);">
+                            <th style="text-align: left; padding: 5px;">ITEM</th>
+                            <th style="text-align: center; padding: 5px;">QTY</th>
+                            <th style="text-align: right; padding: 5px;">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each fridgeProducts}}
+                        <tr style="border-bottom: 1px solid rgba(0, 212, 255, 0.1);">
+                            <td style="padding: 8px;">{{product.name}} <small style="color: #777;">({{product.weight}}kg, ${{product.price}})</small></td>
+                            <td style="text-align: center; font-weight: bold;">{{quantity}}</td>
+                            <td style="text-align: right;">
+                                <form action="/fridge/consume" method="post" class="ajax-form" style="display: inline;">
+                                    <button name="productName" value="{{product.name}}" type="submit" style="font-size: 0.7em; padding: 2px 5px; margin: 0; border-color: #ff3e3e; color: #ff3e3e;">CONSUME</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top: 1.5em;">Order Manual</h3>
+                <form action="/fridge/order" method="post" class="ajax-form" style="display: flex; flex-direction: column; gap: 0.5em;">
+                    <input type="text" name="productName" placeholder="Item Name (e.g. Eggs)" required>
+                    <input type="number" name="quantity" value="1" min="1" required>
+                    <button type="submit" style="border-color: #00ffaa; color: #00ffaa;">Place Order</button>
+                </form>
+            </div>
+
+            <div>
+                <h3>Order History</h3>
+                <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border: 1px solid rgba(0, 212, 255, 0.1); font-size: 0.8em;">
+                    {{#each fridgeHistory}}
+                    <div style="margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #333;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--jarvis-cyan);">ID: {{orderId}}</span>
+                            <span style="{{#if successful}}color: #00ffaa;{{else}}color: #ff3e3e;{{/if}}">[{{#if successful}}SUCCESS{{else}}FAILED{{/if}}]</span>
+                        </div>
+                        <div>ORDER: {{quantity}}x {{product.name}}</div>
+                        <div style="text-align: right; opacity: 0.7;">TOTAL: ${{totalCost}}</div>
+                    </div>
+                    {{else}}
+                    <div style="opacity: 0.5; font-style: italic;">No history entries</div>
+                    {{/each}}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -207,6 +263,11 @@
 
         eventSource.addEventListener('weather', function(e) {
             document.getElementById('weather-val').textContent = e.data;
+        });
+
+        eventSource.addEventListener('fridge-update', function(e) {
+            console.log("Fridge updated, reloading data...");
+            setTimeout(() => window.location.reload(), 1000); 
         });
 
         eventSource.onerror = function(e) {

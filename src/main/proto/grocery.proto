@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+package at.fhv.sysarch.lab2.homeautomation.external.grpc;
+
+service GroceryStore {
+  rpc ProcessOrder (OrderRequest) returns (OrderReceipt) {}
+}
+
+message OrderRequest {
+  string productName = 1;
+  double price = 2;
+  double weight = 3;
+  int32 quantity = 4;
+}
+
+message OrderReceipt {
+  string orderId = 1;
+  string productName = 2;
+  int32 quantity = 3;
+  double totalCost = 4;
+  bool successful = 5;
+}
