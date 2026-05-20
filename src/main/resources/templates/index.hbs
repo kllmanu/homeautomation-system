@@ -1,31 +1,98 @@
 <html>
+
 <head>
     <title>{{title}}</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .section { margin-bottom: 2em; padding: 1em; border: 1px solid #ccc; border-radius: 8px; }
-        h1 { color: #333; }
-        button { padding: 0.5em 1em; cursor: pointer; }
-        .weather-btns button { margin-right: 0.5em; }
-        .status-badge { font-size: 0.8em; padding: 2px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle; color: white; background-color: #777; }
-        .status-on, .status-playing, .status-open { background-color: #28a745; }
-        .status-off, .status-idle, .status-closed { background-color: #dc3545; }
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+
+        .section {
+            margin-bottom: 2em;
+            padding: 1em;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            padding: 0.5em 1em;
+            cursor: pointer;
+        }
+
+        .weather-btns button {
+            margin-right: 0.5em;
+        }
+
+        .status-badge {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 10px;
+            vertical-align: middle;
+            color: white;
+            background-color: #777;
+        }
+
+        .status-on,
+        .status-playing,
+        .status-open {
+            background-color: #28a745;
+        }
+
+        .status-off,
+        .status-idle,
+        .status-closed {
+            background-color: #dc3545;
+        }
 
         @media (prefers-color-scheme: dark) {
-            body { background-color: #121212; color: #e0e0e0; }
-            h1, h2, h3 { color: #ffffff; }
-            .section { background-color: #1e1e1e; border-color: #333; }
-            button { background-color: #333; color: #fff; border: 1px solid #555; }
-            button:hover { background-color: #444; }
-            input { background-color: #333; color: #fff; border: 1px solid #555; }
+            body {
+                background-color: #121212;
+                color: #e0e0e0;
+            }
+
+            h1,
+            h2,
+            h3 {
+                color: #ffffff;
+            }
+
+            .section {
+                background-color: #1e1e1e;
+                border-color: #333;
+            }
+
+            button {
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #555;
+            }
+
+            button:hover {
+                background-color: #444;
+            }
+
+            input {
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #555;
+            }
         }
     </style>
 </head>
+
 <body>
-    <div id="status-message" style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;"></div>
+    <div id="status-message"
+        style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;">
+    </div>
 
     <h1>{{title}}</h1>
-    
+
     <div class="section">
         <p>Current Simulation Mode: <strong>{{mode}}</strong></p>
     </div>
@@ -33,8 +100,8 @@
     {{#if isManual}}
     <div class="section">
         <h2>Temperature Control</h2>
-        <form action="/temperature" method="post" class="ajax-form">
-            <input type="number" step="0.1" name="value" placeholder="20.0" required>
+        <form action="/temperature" method="post" class="ajax-form" style="display: flex; gap: 1rem;">
+            <input type="number" step="0.1" name="value" required>
             <button type="submit">Set Temperature</button>
         </form>
         <div style="margin-top: 10px;">
@@ -58,13 +125,14 @@
     </div>
     {{else}}
     <div class="section">
-        <p><em>Manual overrides are disabled because the system is using the <strong>{{mode}}</strong> environment.</em></p>
+        <p><em>Manual overrides are disabled because the system is using the <strong>{{mode}}</strong> environment.</em>
+        </p>
     </div>
     {{/if}}
 
     <div class="section">
         <h2>Device Controls</h2>
-        
+
         <div style="margin-bottom: 1em;">
             <h3>AirCondition <span id="aircondition-status" class="status-badge {{acClass}}">{{acState}}</span></h3>
             <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
@@ -76,7 +144,8 @@
         </div>
 
         <div style="margin-bottom: 1em;">
-            <h3>MediaStation <span id="mediastation-status" class="status-badge {{mediaClass}}">{{mediaState}}</span></h3>
+            <h3>MediaStation <span id="mediastation-status" class="status-badge {{mediaClass}}">{{mediaState}}</span>
+            </h3>
             <form action="/mediastation-play" method="post" style="display: inline;" class="ajax-form">
                 <button type="submit">Play Movie</button>
             </form>
@@ -99,64 +168,64 @@
     <script>
         // SSE Listener
         const eventSource = new EventSource('/events');
-        
-        eventSource.addEventListener('aircondition', function(e) {
+
+        eventSource.addEventListener('aircondition', function (e) {
             const status = document.getElementById('aircondition-status');
             status.textContent = e.data;
             status.className = 'status-badge ' + (e.data === 'ON' ? 'status-on' : 'status-off');
         });
 
-        eventSource.addEventListener('blinds', function(e) {
+        eventSource.addEventListener('blinds', function (e) {
             const status = document.getElementById('blinds-status');
             status.textContent = e.data;
             status.className = 'status-badge ' + (e.data === 'CLOSED' ? 'status-closed' : 'status-open');
         });
 
-        eventSource.addEventListener('mediastation', function(e) {
+        eventSource.addEventListener('mediastation', function (e) {
             const status = document.getElementById('mediastation-status');
             status.textContent = e.data;
             status.className = 'status-badge ' + (e.data === 'PLAYING' ? 'status-playing' : 'status-idle');
         });
 
-        eventSource.onerror = function(e) {
+        eventSource.onerror = function (e) {
             console.error("SSE Error: ", e);
         };
 
         // AJAX Form Handler
         document.querySelectorAll('.ajax-form').forEach(form => {
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', function (e) {
                 e.preventDefault();
-                
+
                 const url = this.action;
                 const method = this.method;
                 const formData = new FormData(this);
-                
+
                 // If the button clicked has a value (like in Weather or Blinds), add it to formData
                 if (e.submitter && e.submitter.name && e.submitter.value) {
                     formData.append(e.submitter.name, e.submitter.value);
                 }
 
                 const statusDiv = document.getElementById('status-message');
-                
+
                 fetch(url, {
                     method: method,
                     body: new URLSearchParams(formData)
                 })
-                .then(response => response.text())
-                .then(text => {
-                    statusDiv.textContent = text;
-                    statusDiv.style.backgroundColor = '#d4edda';
-                    statusDiv.style.color = '#155724';
-                    statusDiv.style.display = 'block';
-                    setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
-                })
-                .catch(error => {
-                    statusDiv.textContent = 'Error: ' + error;
-                    statusDiv.style.backgroundColor = '#f8d7da';
-                    statusDiv.style.color = '#721c24';
-                    statusDiv.style.display = 'block';
-                    setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
-                });
+                    .then(response => response.text())
+                    .then(text => {
+                        statusDiv.textContent = text;
+                        statusDiv.style.backgroundColor = '#d4edda';
+                        statusDiv.style.color = '#155724';
+                        statusDiv.style.display = 'block';
+                        setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+                    })
+                    .catch(error => {
+                        statusDiv.textContent = 'Error: ' + error;
+                        statusDiv.style.backgroundColor = '#f8d7da';
+                        statusDiv.style.color = '#721c24';
+                        statusDiv.style.display = 'block';
+                        setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+                    });
             });
         });
     </script>
@@ -169,7 +238,9 @@
             <li><strong>External MQTT Simulation:</strong><br><code>./gradlew run --args="--external"</code></li>
             <li><strong>Manual Mode (No Simulation):</strong><br><code>./gradlew run --args="--manual"</code></li>
         </ul>
-        <p><small><em>Note: You can also use <code>-Dexec.args="--flag"</code> instead of <code>--args="--flag"</code>.</em></small></p>
+        <p><small><em>Note: You can also use <code>-Dexec.args="--flag"</code> instead of
+                    <code>--args="--flag"</code>.</em></small></p>
     </div>
 </body>
+
 </html>
