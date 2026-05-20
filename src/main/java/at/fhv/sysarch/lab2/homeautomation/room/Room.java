@@ -47,7 +47,7 @@ public class Room extends AbstractBehavior<Room.RoomCommand> {
                 getContext().spawn(Topic.create(Blinds.WeatherChanged.class, "weather-topic-" + roomName), "weather-topic");
         
         ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic = 
-                getContext().spawn(Topic.create(Blinds.MediaStationPlaying.class, "media-topic-" + roomName), "media-topic");
+                getContext().spawn(Topic.create(Blinds.MediaStationPlaying.class, "media-topic"), "media-topic");
 
         // Spawn devices
         ActorRef<AirCondition.AirConditionCommand> airCondition = getContext().spawn(AirCondition.create(UUID.randomUUID().toString()), "airCondition");

@@ -49,4 +49,32 @@ public class BlindsTest {
                     return null;
                 });
     }
+
+    @Test
+    public void testBlindsMovieLogic() {
+        ActorRef<Blinds.BlindsCommand> blinds = testKit.spawn(Blinds.create());
+
+        // Test Movie Playing -> Closing
+        LoggingTestKit.info("Blinds: Closing")
+                .expect(testKit.system(), () -> {
+                    blinds.tell(new Blinds.MediaStationPlaying(true));
+                    return null;
+                });
+
+        // Test Movie Stopped -> Opening (if weather not sunny)
+        LoggingTestKit.info("Blinds: Opening")
+                .expect(testKit.system(), () -> {
+                    blinds.tell(new Blinds.MediaStationPlaying(false));
+                    return null;
+                });
+        
+        // Test Movie Playing while SUNNY -> Stays Closed
+        blinds.tell(new Blinds.WeatherChanged(new WeatherCondition(WeatherEnvironment.Weather.SUNNY, "Condition")));
+        LoggingTestKit.info("Blinds: Closing")
+                .withOccurrences(0)
+                .expect(testKit.system(), () -> {
+                    blinds.tell(new Blinds.MediaStationPlaying(true));
+                    return null;
+                });
+    }
 }
