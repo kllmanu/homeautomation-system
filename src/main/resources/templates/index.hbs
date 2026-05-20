@@ -3,33 +3,137 @@
 <head>
     <title>{{title}}</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .section { margin-bottom: 2em; padding: 1em; border: 1px solid #ccc; border-radius: 8px; }
-        h1 { color: #333; }
-        button { padding: 0.5em 1em; cursor: pointer; }
-        .weather-btns button { margin-right: 0.5em; }
-        .status-badge { font-size: 0.8em; padding: 2px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle; color: white; background-color: #777; }
-        .status-on, .status-playing, .status-open { background-color: #28a745; }
-        .status-off, .status-idle, .status-closed { background-color: #dc3545; }
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+
+        .section {
+            margin-bottom: 2em;
+            padding: 1em;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            padding: 0.5em 1em;
+            cursor: pointer;
+        }
+
+        .weather-btns button {
+            margin-right: 0.5em;
+        }
+
+        .status-badge {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 10px;
+            vertical-align: middle;
+            color: white;
+            background-color: #777;
+        }
+
+        .status-on,
+        .status-playing,
+        .status-open {
+            background-color: #28a745;
+        }
+
+        .status-off,
+        .status-idle,
+        .status-closed {
+            background-color: #dc3545;
+        }
+
+        .connection-status {
+            background-color: transparent !important;
+            font-weight: bold;
+        }
+
+        .conn-connected {
+            color: #28a745;
+            border-color: #28a745;
+        }
+
+        .conn-disconnected {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        select {
+            padding: 0.5em;
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
 
         @media (prefers-color-scheme: dark) {
-            body { background-color: #121212; color: #e0e0e0; }
-            h1, h2, h3 { color: #ffffff; }
-            .section { background-color: #1e1e1e; border-color: #333; }
-            button { background-color: #333; color: #fff; border: 1px solid #555; }
-            button:hover { background-color: #444; }
-            input { background-color: #333; color: #fff; border: 1px solid #555; }
+            body {
+                background-color: #121212;
+                color: #e0e0e0;
+            }
+
+            h1,
+            h2,
+            h3 {
+                color: #ffffff;
+            }
+
+            .section {
+                background-color: #1e1e1e;
+                border-color: #333;
+            }
+
+            button {
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #555;
+            }
+
+            button:hover {
+                background-color: #444;
+            }
+
+            input {
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #555;
+            }
+
+            select {
+                background-color: #333;
+                color: #fff;
+                border-color: #555;
+            }
+
+            .conn-connected {
+                color: #00ffaa;
+                border-color: #00ffaa;
+            }
+
+            .conn-disconnected {
+                color: #ff3e3e;
+                border-color: #ff3e3e;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div id="status-message" style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;"></div>
+    <div id="status-message"
+        style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;">
+    </div>
 
     <div class="section">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <p>MODE::<strong>{{mode}}</strong></p>
-            <div id="connection-status" class="status-badge" style="color: #ff3e3e; border-color: #ff3e3e;">DISCONNECTED</div>
+            <div id="connection-status" class="status-badge connection-status conn-disconnected">DISCONNECTED</div>
         </div>
     </div>
 
@@ -38,11 +142,13 @@
         <div style="display: flex; justify-content: space-around; text-align: center;">
             <div>
                 <div style="font-size: 0.8em; margin-bottom: 5px;">AMBIENT_TEMP</div>
-                <div style="font-size: 2.5em; font-weight: bold;"><span id="temp-emoji">{{tempEmoji}}</span> <span id="temperature-val">{{temperature}}</span>°C</div>
+                <div style="font-size: 2.5em; font-weight: bold;"><span id="temp-emoji">{{tempEmoji}}</span> <span
+                        id="temperature-val">{{temperature}}</span>°C</div>
             </div>
             <div>
                 <div style="font-size: 0.8em; margin-bottom: 5px;">WEATHER_SENSOR</div>
-                <div style="font-size: 2.5em; font-weight: bold; text-transform: uppercase;"><span id="weather-emoji">{{weatherEmoji}}</span> <span id="weather-val">{{weather}}</span></div>
+                <div style="font-size: 2.5em; font-weight: bold; text-transform: uppercase;"><span
+                        id="weather-emoji">{{weatherEmoji}}</span> <span id="weather-val">{{weather}}</span></div>
             </div>
         </div>
     </div>
@@ -104,8 +210,19 @@
     </div>
 
     <div class="section">
-        <h2>Smart Fridge :: Kitchen</h2>
-        
+        <h2>Fridge</h2>
+
+        <div style="display: flex; gap: 2em; margin-bottom: 1em; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; justify-content: space-around;">
+            <div style="text-align: center;">
+                <div style="font-size: 0.8em; color: #777;">WEIGHT</div>
+                <div style="font-size: 1.2em; font-weight: bold;"><span id="fridge-weight">{{fridgeCurrentWeight}}</span> / {{fridgeMaxWeight}} kg</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 0.8em; color: #777;">VOLUME</div>
+                <div style="font-size: 1.2em; font-weight: bold;"><span id="fridge-volume">{{fridgeCurrentVolume}}</span> / {{fridgeMaxVolume}} items</div>
+            </div>
+        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2em;">
             <div>
                 <h3>Inventory</h3>
@@ -120,11 +237,13 @@
                     <tbody>
                         {{#each fridgeProducts}}
                         <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 8px;">{{product.name}} <small style="color: #777;">({{product.weight}}kg, ${{product.price}})</small></td>
+                            <td style="padding: 8px;">{{product.name}} <small
+                                    style="color: #777;">({{product.weight}}kg, ${{product.price}})</small></td>
                             <td style="text-align: center; font-weight: bold;">{{quantity}}</td>
                             <td style="text-align: right;">
                                 <form action="/fridge/consume" method="post" class="ajax-form" style="display: inline;">
-                                    <button name="productName" value="{{product.name}}" type="submit" style="font-size: 0.7em; padding: 2px 5px; margin: 0; color: #ff3e3e; border-color: #ff3e3e;">CONSUME</button>
+                                    <button name="productName" value="{{product.name}}" type="submit"
+                                        style="font-size: 0.7em; padding: 2px 5px; margin: 0; color: #ff3e3e; border-color: #ff3e3e;">CONSUME</button>
                                 </form>
                             </td>
                         </tr>
@@ -133,8 +252,14 @@
                 </table>
 
                 <h3 style="margin-top: 1.5em;">Order Manual</h3>
-                <form action="/fridge/order" method="post" class="ajax-form" style="display: flex; flex-direction: column; gap: 0.5em;">
-                    <input type="text" name="productName" placeholder="Item Name (e.g. Eggs)" required>
+                <form action="/fridge/order" method="post" class="ajax-form"
+                    style="display: flex; flex-direction: column; gap: 0.5em;">
+                    <select name="productName" required>
+                        <option value="" disabled selected>Select Product</option>
+                        <option value="Eggs">Eggs</option>
+                        <option value="Milk">Milk</option>
+                        <option value="Beer">Beer</option>
+                    </select>
                     <input type="number" name="quantity" value="1" min="1" required>
                     <button type="submit">Place Order</button>
                 </form>
@@ -142,12 +267,14 @@
 
             <div>
                 <h3>Order History</h3>
-                <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.05); padding: 10px; border: 1px solid #eee; font-size: 0.8em;">
+                <div
+                    style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.05); padding: 10px; border: 1px solid #eee; font-size: 0.8em;">
                     {{#each fridgeHistory}}
                     <div style="margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #ccc;">
                         <div style="display: flex; justify-content: space-between;">
                             <span style="font-weight: bold;">ID: {{orderId}}</span>
-                            <span style="{{#if successful}}color: #28a745;{{else}}color: #dc3545;{{/if}}">[{{#if successful}}SUCCESS{{else}}FAILED{{/if}}]</span>
+                            <span style="{{#if successful}}color: #28a745;{{else}}color: #dc3545;{{/if}}">[{{#if
+                                successful}}SUCCESS{{else}}FAILED{{/if}}]</span>
                         </div>
                         <div>ORDER: {{quantity}}x {{product.name}}</div>
                         <div style="text-align: right; opacity: 0.7;">TOTAL: ${{totalCost}}</div>
@@ -162,24 +289,24 @@
 
     <script>
         const statusBadge = document.getElementById('connection-status');
-        
+
         // SSE Listener
         const eventSource = new EventSource('/events');
 
-        eventSource.onopen = function() {
+        eventSource.onopen = function () {
             statusBadge.textContent = 'CONNECTED';
-            statusBadge.style.color = '#28a745';
-            statusBadge.style.borderColor = '#28a745';
+            statusBadge.classList.remove('conn-disconnected');
+            statusBadge.classList.add('conn-connected');
         };
 
-        eventSource.onerror = function(e) {
+        eventSource.onerror = function (e) {
             console.error("SSE Error: ", e);
             statusBadge.textContent = 'DISCONNECTED';
-            statusBadge.style.color = '#dc3545';
-            statusBadge.style.borderColor = '#dc3545';
+            statusBadge.classList.remove('conn-connected');
+            statusBadge.classList.add('conn-disconnected');
         };
 
-        eventSource.addEventListener('heartbeat', function(e) {
+        eventSource.addEventListener('heartbeat', function (e) {
             statusBadge.style.opacity = '0.5';
             setTimeout(() => statusBadge.style.opacity = '1', 200);
         });
@@ -196,13 +323,13 @@
             status.className = 'status-badge ' + (e.data === 'CLOSED' ? 'status-closed' : 'status-open');
         });
 
-        eventSource.addEventListener('mediastation', function(e) {
+        eventSource.addEventListener('mediastation', function (e) {
             const status = document.getElementById('mediastation-status');
             status.textContent = e.data;
             status.className = 'status-badge ' + (e.data === 'PLAYING' ? 'status-playing' : 'status-idle');
         });
 
-        eventSource.addEventListener('temperature', function(e) {
+        eventSource.addEventListener('temperature', function (e) {
             const temp = parseFloat(e.data);
             document.getElementById('temperature-val').textContent = e.data;
             const emojiEl = document.getElementById('temp-emoji');
@@ -212,7 +339,7 @@
             else emojiEl.textContent = '🔥';
         });
 
-        eventSource.addEventListener('weather', function(e) {
+        eventSource.addEventListener('weather', function (e) {
             document.getElementById('weather-val').textContent = e.data;
             const emojiEl = document.getElementById('weather-emoji');
             const condition = e.data.toUpperCase();
@@ -222,9 +349,9 @@
             else emojiEl.textContent = '🛸';
         });
 
-        eventSource.addEventListener('fridge-update', function(e) {
+        eventSource.addEventListener('fridge-update', function (e) {
             console.log("Fridge updated, reloading data...");
-            setTimeout(() => window.location.reload(), 1000); 
+            setTimeout(() => window.location.reload(), 1000);
         });
 
         // AJAX Form Handler

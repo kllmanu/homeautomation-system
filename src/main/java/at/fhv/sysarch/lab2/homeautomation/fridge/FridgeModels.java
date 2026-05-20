@@ -28,6 +28,9 @@ public class FridgeModels {
     public record OrderFailed(String reason) implements FridgeCommand {}
 
     // Sensor Commands
+    public record QueryFridgeStatus(ActorRef<FridgeStatusResponse> replyTo) implements FridgeCommand {}
+    public record FridgeStatusResponse(int currentVolume, int maxVolume, double currentWeight, double maxWeight) {}
+
     public record ReadWeight(ActorRef<WeightResponse> replyTo) implements FridgeCommand {}
     public record WeightResponse(double weight) {}
 

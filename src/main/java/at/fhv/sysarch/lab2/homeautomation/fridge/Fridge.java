@@ -71,6 +71,7 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
                 .onMessage(FridgeModels.Subscribe.class, this::onSubscribe)
                 .onMessage(FridgeModels.OrderCompleted.class, this::onOrderCompleted)
                 .onMessage(FridgeModels.OrderFailed.class, this::onOrderFailed)
+                .onMessage(FridgeModels.QueryFridgeStatus.class, this::onQueryFridgeStatus)
                 .onMessage(FridgeModels.ReadWeight.class, this::onReadWeight)
                 .onMessage(FridgeModels.ReadVolume.class, this::onReadVolume)
                 .onSignal(PostStop.class, signal -> onPostStop())
@@ -166,6 +167,14 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
 
     private Behavior<FridgeModels.FridgeCommand> onOrderFailed(FridgeModels.OrderFailed f) {
         getContext().getLog().error("Order process failed: {}", f.reason());
+        return this;
+    }
+
+    private Behavior<FridgeModels.FridgeCommand> onQueryFridgeStatus(FridgeModels.QueryFridgeStatus q) {
+        int currentVolume = inventory.values().stream().mapToInt(Integer::intValue).sum();
+        double currentWeight = inventory.entrySet().stream()
+                .mapToDouble(e -> e.getKey().weight() * e.getValue()).sum();
+        q.replyTo().tell(new FridgeModels.FridgeStatusResponse(currentVolume, maxVolume, currentWeight, maxWeight));
         return this;
     }
 

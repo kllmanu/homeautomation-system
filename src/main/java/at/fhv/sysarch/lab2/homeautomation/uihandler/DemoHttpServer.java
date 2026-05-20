@@ -201,16 +201,24 @@ public class DemoHttpServer extends AllDirectives {
                                     Duration.ofSeconds(2),
                                     system.scheduler()
                             );
+                            CompletionStage<FridgeModels.FridgeStatusResponse> fridgeStatusStage = AskPattern.ask(
+                                    fridge,
+                                    FridgeModels.QueryFridgeStatus::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
 
                             return onSuccess(acStage.thenCombine(blindsStage, Pair::new)
                                             .thenCombine(mediaStage, Pair::new)
                                             .thenCombine(tempStage, Pair::new)
                                             .thenCombine(weatherStage, Pair::new)
                                             .thenCombine(fridgeProductsStage, Pair::new)
-                                            .thenCombine(fridgeHistoryStage, Pair::new),
+                                            .thenCombine(fridgeHistoryStage, Pair::new)
+                                            .thenCombine(fridgeStatusStage, Pair::new),
                                     combined -> {
-                                        // Nesting: Pair<Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>, History>
-                                        var p_products = combined.first(); // Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>
+                                        // Nesting: Pair<Pair<Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>, History>, Status>
+                                        var p_history = combined.first(); // Pair<Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>, History>
+                                        var p_products = p_history.first(); // Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>
                                         var p_weather = p_products.first(); // Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>
                                         var p_temp = p_weather.first(); // Pair<Pair<Pair<AC, Blinds>, Media>, Temp>
                                         var p_media = p_temp.first(); // Pair<Pair<AC, Blinds>, Media>
@@ -222,7 +230,8 @@ public class DemoHttpServer extends AllDirectives {
                                         TemperatureEnvironment.TemperatureResponse temp = p_temp.second();
                                         WeatherEnvironment.WeatherResponse weather = p_weather.second();
                                         FridgeModels.ProductsResponse products = p_products.second();
-                                        FridgeModels.OrderHistoryResponse history = combined.second();
+                                        FridgeModels.OrderHistoryResponse history = p_history.second();
+                                        FridgeModels.FridgeStatusResponse status = combined.second();
 
                                         Map<String, Object> model = new HashMap<>();
                                         model.put("title", "Home Automation Environment Control");
@@ -245,6 +254,10 @@ public class DemoHttpServer extends AllDirectives {
                                         
                                         model.put("fridgeProducts", products.products());
                                         model.put("fridgeHistory", history.orders());
+                                        model.put("fridgeCurrentWeight", String.format("%.1f", status.currentWeight()));
+                                        model.put("fridgeMaxWeight", String.format("%.1f", status.maxWeight()));
+                                        model.put("fridgeCurrentVolume", status.currentVolume());
+                                        model.put("fridgeMaxVolume", status.maxVolume());
                                         
                                         try {
                                             String rendered = indexTemplate.apply(model);
@@ -266,8 +279,14 @@ public class DemoHttpServer extends AllDirectives {
                             return complete("Consumed " + name);
                         }))),
                         path("order", () -> post(() -> formField("productName", name -> formField("quantity", q -> {
-                            // Dummy price/weight for demo
-                            FridgeModels.Product p = new FridgeModels.Product(name, 2.5, 0.5);
+                            // Assign realistic data based on selected product
+                            FridgeModels.Product p;
+                            switch (name.toLowerCase()) {
+                                case "eggs": p = new FridgeModels.Product("Eggs", 2.99, 0.6); break;
+                                case "milk": p = new FridgeModels.Product("Milk", 1.20, 1.0); break;
+                                case "beer": p = new FridgeModels.Product("Beer", 0.89, 0.5); break;
+                                default: p = new FridgeModels.Product(name, 1.0, 1.0);
+                            }
                             this.fridge.tell(new FridgeModels.OrderProduct(p, Integer.parseInt(q)));
                             return complete("Ordering " + q + "x " + name);
                         }))))
