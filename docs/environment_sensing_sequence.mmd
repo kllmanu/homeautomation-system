@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant Env as WeatherEnvironment
+    participant Sensor as WeatherSensor
+    participant Topic as weather-topic-LivingRoom
+    participant B as Blinds
+
+    Note over Sensor: Timer Tick (every 5s)
+    Sensor->>Env: Ask: GetWeather()
+    Env-->>Sensor: WeatherResponse(SUNNY)
+    
+    alt Weather changed
+        Sensor->>Topic: Publish: WeatherChanged(SUNNY)
+        Topic-->>B: WeatherChanged(SUNNY)
+        B->>B: updateBlindsState() (Close if not movie playing)
+    end

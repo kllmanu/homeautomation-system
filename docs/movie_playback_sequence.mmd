@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant UI as DemoHttpServer
+    participant MS as MediaStation
+    participant Topic as media-topic
+    participant B_LR as Blinds (LivingRoom)
+    participant B_K as Blinds (Kitchen)
+
+    Note over UI, B_K: User clicks "Play Movie" in the UI
+    UI->>MS: Ask: PlayMovie(replyTo)
+    
+    alt Movie is already playing
+        MS-->>UI: PlayMovieResponse(success=false, message="Already playing")
+        Note right of UI: UI shows red error message
+    else Movie not playing
+        MS->>MS: Set moviePlaying = true
+        MS->>Topic: Publish: MediaStationPlaying(playing=true)
+        
+        par Topic Broadcast
+            Topic-->>B_LR: MediaStationPlaying(true)
+            B_LR->>B_LR: updateBlindsState() (Close)
+        and
+            Topic-->>B_K: MediaStationPlaying(true)
+            B_K->>B_K: updateBlindsState() (Close)
+        end
+        
+        MS-->>UI: PlayMovieResponse(success=true, message="Movie started")
+        Note right of UI: UI shows green success message
+    end

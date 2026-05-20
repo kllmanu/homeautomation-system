@@ -1,0 +1,181 @@
+classDiagram
+    class HomeAutomationController {
+        -String[] args
+        -ActorRef airCondition
+        -ActorRef blinds
+        -ActorRef mediaStation
+        -ActorRef tempEnv
+        -ActorRef weatherEnv
+        -ActorRef fridge
+        -boolean external
+        -boolean manual
+        +create(args)
+        -onAirConditionListing(Listing)
+        -onBlindsListing(Listing)
+        -onMediaStationListing(Listing)
+        -onTempEnvListing(Listing)
+        -onWeatherEnvListing(Listing)
+        -onFridgeListing(Listing)
+        -checkIfAllReady()
+        -startServer()
+    }
+
+    class Space {
+        -String spaceName
+        +create(name)
+    }
+
+    class Room {
+        -String roomName
+        +create(name)
+    }
+
+    class Blinds {
+        -boolean blindsClosed
+        -boolean moviePlaying
+        -Weather lastWeather
+        -ActorRef subscriber
+        +create()
+        -onWeatherChanged(WeatherChanged)
+        -onMediaStationPlaying(MediaStationPlaying)
+        -onControlBlinds(ControlBlinds)
+        -onSubscribe(Subscribe)
+        -onReadState(ReadState)
+        -updateBlindsState()
+        -notifySubscriber()
+    }
+
+    class MediaStation {
+        -ActorRef mediaTopic
+        -boolean moviePlaying
+        -ActorRef subscriber
+        +create(mediaTopic)
+        -onPlayMovie(PlayMovie)
+        -onStopMovie(StopMovie)
+        -onSubscribe(Subscribe)
+        -onReadState(ReadState)
+        -notifySubscriber()
+    }
+
+    class Fridge {
+        -int maxVolume
+        -double maxWeight
+        -Map inventory
+        -List history
+        -List subscribers
+        -GroceryStoreClient groceryStoreClient
+        +create(maxVolume, maxWeight)
+        -onQueryProducts(QueryProducts)
+        -onQueryOrderHistory(QueryOrderHistory)
+        -onConsumeProduct(ConsumeProduct)
+        -onOrderProduct(OrderProduct)
+        -onOrderCompleted(OrderCompleted)
+        -onOrderFailed(OrderFailed)
+        -onQueryFridgeStatus(QueryFridgeStatus)
+        -notifySubscribers()
+    }
+
+    class OrderProcessor {
+        -Product product
+        -int quantity
+        -ActorRef replyTo
+        -GroceryStore client
+        +create(product, quantity, replyTo, client)
+        -onReceipt(InternalReceipt)
+        -onFailure(InternalFailure)
+    }
+
+    class GroceryStore {
+        <<gRPC Service Interface>>
+        +processOrder(OrderRequest)* CompletionStage~OrderReceipt~
+    }
+
+    class GroceryStoreServiceImpl {
+        -ActorRef messageReceiver
+        +processOrder(OrderRequest)
+    }
+
+    class MessageReceiver {
+        -ActorRef processingActor
+        +create()
+        -onIncomingOrder(IncomingOrder)
+    }
+
+    class ProcessingActor {
+        -ActorRef persistenceActor
+        +create()
+        -onProcessOrder(ProcessOrder)
+    }
+
+    class PersistenceActor {
+        -List orders
+        +create()
+        -onPersistOrder(PersistOrder)
+    }
+
+    class AirCondition {
+        -String identifier
+        -boolean poweredOn
+        -ActorRef subscriber
+        +create(identifier)
+        -onPowerAirCondition(PowerAirCondition)
+        -onReadTemperature(EnrichedTemperature)
+        -onSubscribe(Subscribe)
+        -onReadState(ReadState)
+        -notifySubscriber()
+    }
+
+    class TemperatureSensor {
+        -ActorRef tempTopic
+        -ActorRef tempEnv
+        +create(tempTopic)
+        -onSenseTemperature()
+        -onListing(Listing)
+        -onTemperatureResponse(Response)
+    }
+
+    class WeatherSensor {
+        -ActorRef weatherTopic
+        -ActorRef weatherEnv
+        +create(weatherTopic)
+        -onSenseWeather()
+        -onListing(Listing)
+        -onWeatherResponse(Response)
+    }
+
+    HomeAutomationController ..> Space : spawns
+    Space ..> Room : spawns
+    Room ..> Blinds : spawns
+    Room ..> MediaStation : spawns
+    Room ..> Fridge : spawns
+    Room ..> AirCondition : spawns
+    Room ..> TemperatureSensor : spawns
+    Room ..> WeatherSensor : spawns
+    
+    Fridge ..> OrderProcessor : spawns
+    OrderProcessor ..> GroceryStore : calls gRPC
+
+    GroceryStoreServiceImpl --|> GroceryStore
+    GroceryStoreServiceImpl ..> MessageReceiver : asks
+    MessageReceiver ..> ProcessingActor : tells
+    ProcessingActor ..> PersistenceActor : tells
+
+    %% Category Styles (Must be at the end for Mermaid.live)
+    style HomeAutomationController fill:#f9f,stroke:#333,stroke-width:2px
+    style Space fill:#bbf,stroke:#333,stroke-width:2px
+    style Room fill:#bbf,stroke:#333,stroke-width:2px
+    
+    style Blinds fill:#bfb,stroke:#333,stroke-width:2px
+    style MediaStation fill:#bfb,stroke:#333,stroke-width:2px
+    style AirCondition fill:#bfb,stroke:#333,stroke-width:2px
+    style Fridge fill:#bfb,stroke:#333,stroke-width:2px
+    
+    style TemperatureSensor fill:#fdfd96,stroke:#333,stroke-width:2px
+    style WeatherSensor fill:#fdfd96,stroke:#333,stroke-width:2px
+    
+    style OrderProcessor fill:#ddd,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    style GroceryStore fill:#e0b0ff,stroke:#333,stroke-width:2px
+    style GroceryStoreServiceImpl fill:#e0b0ff,stroke:#333,stroke-width:2px
+    style MessageReceiver fill:#e0b0ff,stroke:#333,stroke-width:2px
+    style ProcessingActor fill:#e0b0ff,stroke:#333,stroke-width:2px
+    style PersistenceActor fill:#e0b0ff,stroke:#333,stroke-width:2px

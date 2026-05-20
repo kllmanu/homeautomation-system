@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant UI as DemoHttpServer
+    participant F as Fridge
+    participant OP as OrderProcessor (Child)
+    participant GS as GroceryStore (gRPC Service)
+
+    Note over UI, GS: User orders 2x Milk
+    UI->>F: Ask: OrderProduct(product, quantity, replyTo)
+    
+    alt Capacity Exceeded (Weight or Volume)
+        F-->>UI: OrderResponse(success=false, error_reason)
+    else Capacity OK
+        F->>OP: Spawn Child Actor
+        F-->>UI: OrderResponse(success=true, "Order placed")
+        
+        Note over OP, GS: Asynchronous gRPC Call
+        OP->>GS: processOrder(OrderRequest)
+        GS-->>OP: OrderReceipt (CompletionStage)
+        
+        OP->>F: Tell: OrderCompleted(receipt)
+        Note over OP: Child Actor Stops (stopped)
+        
+        F->>F: Update Inventory & History
+        F->>F: notifySubscribers() (SSE Update)
+    end
