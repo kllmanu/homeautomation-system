@@ -3,110 +3,46 @@
 <head>
     <title>{{title}}</title>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 2em;
-        }
-
-        .section {
-            margin-bottom: 2em;
-            padding: 1em;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        button {
-            padding: 0.5em 1em;
-            cursor: pointer;
-        }
-
-        .weather-btns button {
-            margin-right: 0.5em;
-        }
-
-        .status-badge {
-            font-size: 0.8em;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 10px;
-            vertical-align: middle;
-            color: white;
-            background-color: #777;
-        }
-
-        .status-on,
-        .status-playing,
-        .status-open {
-            background-color: #28a745;
-        }
-
-        .status-off,
-        .status-idle,
-        .status-closed {
-            background-color: #dc3545;
-        }
+        body { font-family: sans-serif; margin: 2em; }
+        .section { margin-bottom: 2em; padding: 1em; border: 1px solid #ccc; border-radius: 8px; }
+        h1 { color: #333; }
+        button { padding: 0.5em 1em; cursor: pointer; }
+        .weather-btns button { margin-right: 0.5em; }
+        .status-badge { font-size: 0.8em; padding: 2px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle; color: white; background-color: #777; }
+        .status-on, .status-playing, .status-open { background-color: #28a745; }
+        .status-off, .status-idle, .status-closed { background-color: #dc3545; }
 
         @media (prefers-color-scheme: dark) {
-            body {
-                background-color: #121212;
-                color: #e0e0e0;
-            }
-
-            h1,
-            h2,
-            h3 {
-                color: #ffffff;
-            }
-
-            .section {
-                background-color: #1e1e1e;
-                border-color: #333;
-            }
-
-            button {
-                background-color: #333;
-                color: #fff;
-                border: 1px solid #555;
-            }
-
-            button:hover {
-                background-color: #444;
-            }
-
-            input {
-                background-color: #333;
-                color: #fff;
-                border: 1px solid #555;
-            }
+            body { background-color: #121212; color: #e0e0e0; }
+            h1, h2, h3 { color: #ffffff; }
+            .section { background-color: #1e1e1e; border-color: #333; }
+            button { background-color: #333; color: #fff; border: 1px solid #555; }
+            button:hover { background-color: #444; }
+            input { background-color: #333; color: #fff; border: 1px solid #555; }
         }
     </style>
 </head>
 
 <body>
-    <div id="status-message"
-        style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;">
-    </div>
-
-    <h1>{{title}}</h1>
+    <div id="status-message" style="position: fixed; top: 10px; right: 10px; padding: 10px; border-radius: 5px; display: none; z-index: 1000;"></div>
 
     <div class="section">
-        <p>Current Simulation Mode: <strong>{{mode}}</strong></p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p>MODE::<strong>{{mode}}</strong></p>
+            <div id="connection-status" class="status-badge" style="color: #ff3e3e; border-color: #ff3e3e;">DISCONNECTED</div>
+        </div>
     </div>
 
     <div class="section">
         <h2>Environment Telemetry</h2>
         <div style="display: flex; justify-content: space-around; text-align: center;">
             <div>
-                <div style="font-size: 0.8em; color: #fff; margin-bottom: 5px;">AMBIENT_TEMP</div>
-                <div style="font-size: 2.5em; font-weight: bold;"><span id="temperature-val">{{temperature}}</span>°C</div>
+                <div style="font-size: 0.8em; margin-bottom: 5px;">AMBIENT_TEMP</div>
+                <div style="font-size: 2.5em; font-weight: bold;"><span id="temp-emoji">{{tempEmoji}}</span> <span id="temperature-val">{{temperature}}</span>°C</div>
             </div>
             <div>
-                <div style="font-size: 0.8em; color: #fff; margin-bottom: 5px;">WEATHER_SENSOR</div>
-                <div id="weather-val" style="font-size: 2.5em; font-weight: bold; text-transform: uppercase;">{{weather}}</div>
+                <div style="font-size: 0.8em; margin-bottom: 5px;">WEATHER_SENSOR</div>
+                <div style="font-size: 2.5em; font-weight: bold; text-transform: uppercase;"><span id="weather-emoji">{{weatherEmoji}}</span> <span id="weather-val">{{weather}}</span></div>
             </div>
         </div>
     </div>
@@ -118,48 +54,36 @@
             <input type="number" step="0.1" name="value" required>
             <button type="submit">Set Temperature</button>
         </form>
-        <div style="margin-top: 10px;">
-            Presets:
-            <form action="/temperature" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="10" type="submit">10°C</button>
-            </form>
-            <form action="/temperature" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="25" type="submit">25°C</button>
-            </form>
-        </div>
     </div>
-
     <div class="section">
         <h2>Weather Control</h2>
-        <form action="/weather" method="post" class="weather-btns ajax-form">
-            <button name="value" value="SUNNY" type="submit">Sunny</button>
-            <button name="value" value="CLOUDY" type="submit">Cloudy</button>
-            <button name="value" value="RAINY" type="submit">Rainy</button>
-        </form>
-    </div>
-    {{else}}
-    <div class="section">
-        <p><em>Manual overrides are disabled because the system is using the <strong>{{mode}}</strong> environment.</em>
-        </p>
+        <div class="weather-btns">
+            <form action="/weather" method="post" style="display: inline;" class="ajax-form">
+                <button name="value" value="SUNNY" type="submit">Sunny</button>
+            </form>
+            <form action="/weather" method="post" style="display: inline;" class="ajax-form">
+                <button name="value" value="CLOUDY" type="submit">Cloudy</button>
+            </form>
+            <form action="/weather" method="post" style="display: inline;" class="ajax-form">
+                <button name="value" value="RAINY" type="submit">Rainy</button>
+            </form>
+        </div>
     </div>
     {{/if}}
 
     <div class="section">
-        <h2>Device Controls</h2>
+        <h3>AirCondition <span id="aircondition-status" class="status-badge {{acClass}}">{{acState}}</span></h3>
+        <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
+            <button name="value" value="true" type="submit">Turn ON</button>
+        </form>
+        <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
+            <button name="value" value="false" type="submit">Turn OFF</button>
+        </form>
+    </div>
 
+    <div class="section">
+        <h3>MediaStation <span id="mediastation-status" class="status-badge {{mediaClass}}">{{mediaState}}</span></h3>
         <div style="margin-bottom: 1em;">
-            <h3>AirCondition <span id="aircondition-status" class="status-badge {{acClass}}">{{acState}}</span></h3>
-            <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="true" type="submit">Turn ON</button>
-            </form>
-            <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
-                <button name="value" value="false" type="submit">Turn OFF</button>
-            </form>
-        </div>
-
-        <div style="margin-bottom: 1em;">
-            <h3>MediaStation <span id="mediastation-status" class="status-badge {{mediaClass}}">{{mediaState}}</span>
-            </h3>
             <form action="/mediastation-play" method="post" style="display: inline;" class="ajax-form">
                 <button type="submit">Play Movie</button>
             </form>
@@ -167,6 +91,7 @@
                 <button type="submit">Stop Movie</button>
             </form>
         </div>
+    </div>
 
     <div class="section">
         <h3>Blinds <span id="blinds-status" class="status-badge {{blindsClass}}">{{blindsState}}</span></h3>
@@ -178,15 +103,15 @@
         </form>
     </div>
 
-    <div class="section" style="border-color: #ffaa00; box-shadow: 0 0 10px rgba(255, 170, 0, 0.3);">
-        <h2 style="color: #ffaa00; text-shadow: 0 0 5px #ffaa00;">Smart Fridge :: Kitchen</h2>
+    <div class="section">
+        <h2>Smart Fridge :: Kitchen</h2>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2em;">
             <div>
                 <h3>Inventory</h3>
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
                     <thead>
-                        <tr style="border-bottom: 1px solid var(--jarvis-cyan);">
+                        <tr style="border-bottom: 1px solid #ccc;">
                             <th style="text-align: left; padding: 5px;">ITEM</th>
                             <th style="text-align: center; padding: 5px;">QTY</th>
                             <th style="text-align: right; padding: 5px;">ACTION</th>
@@ -194,12 +119,12 @@
                     </thead>
                     <tbody>
                         {{#each fridgeProducts}}
-                        <tr style="border-bottom: 1px solid rgba(0, 212, 255, 0.1);">
+                        <tr style="border-bottom: 1px solid #eee;">
                             <td style="padding: 8px;">{{product.name}} <small style="color: #777;">({{product.weight}}kg, ${{product.price}})</small></td>
                             <td style="text-align: center; font-weight: bold;">{{quantity}}</td>
                             <td style="text-align: right;">
                                 <form action="/fridge/consume" method="post" class="ajax-form" style="display: inline;">
-                                    <button name="productName" value="{{product.name}}" type="submit" style="font-size: 0.7em; padding: 2px 5px; margin: 0; border-color: #ff3e3e; color: #ff3e3e;">CONSUME</button>
+                                    <button name="productName" value="{{product.name}}" type="submit" style="font-size: 0.7em; padding: 2px 5px; margin: 0; color: #ff3e3e; border-color: #ff3e3e;">CONSUME</button>
                                 </form>
                             </td>
                         </tr>
@@ -211,18 +136,18 @@
                 <form action="/fridge/order" method="post" class="ajax-form" style="display: flex; flex-direction: column; gap: 0.5em;">
                     <input type="text" name="productName" placeholder="Item Name (e.g. Eggs)" required>
                     <input type="number" name="quantity" value="1" min="1" required>
-                    <button type="submit" style="border-color: #00ffaa; color: #00ffaa;">Place Order</button>
+                    <button type="submit">Place Order</button>
                 </form>
             </div>
 
             <div>
                 <h3>Order History</h3>
-                <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border: 1px solid rgba(0, 212, 255, 0.1); font-size: 0.8em;">
+                <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.05); padding: 10px; border: 1px solid #eee; font-size: 0.8em;">
                     {{#each fridgeHistory}}
-                    <div style="margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #333;">
+                    <div style="margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #ccc;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--jarvis-cyan);">ID: {{orderId}}</span>
-                            <span style="{{#if successful}}color: #00ffaa;{{else}}color: #ff3e3e;{{/if}}">[{{#if successful}}SUCCESS{{else}}FAILED{{/if}}]</span>
+                            <span style="font-weight: bold;">ID: {{orderId}}</span>
+                            <span style="{{#if successful}}color: #28a745;{{else}}color: #dc3545;{{/if}}">[{{#if successful}}SUCCESS{{else}}FAILED{{/if}}]</span>
                         </div>
                         <div>ORDER: {{quantity}}x {{product.name}}</div>
                         <div style="text-align: right; opacity: 0.7;">TOTAL: ${{totalCost}}</div>
@@ -236,8 +161,28 @@
     </div>
 
     <script>
+        const statusBadge = document.getElementById('connection-status');
+        
         // SSE Listener
         const eventSource = new EventSource('/events');
+
+        eventSource.onopen = function() {
+            statusBadge.textContent = 'CONNECTED';
+            statusBadge.style.color = '#28a745';
+            statusBadge.style.borderColor = '#28a745';
+        };
+
+        eventSource.onerror = function(e) {
+            console.error("SSE Error: ", e);
+            statusBadge.textContent = 'DISCONNECTED';
+            statusBadge.style.color = '#dc3545';
+            statusBadge.style.borderColor = '#dc3545';
+        };
+
+        eventSource.addEventListener('heartbeat', function(e) {
+            statusBadge.style.opacity = '0.5';
+            setTimeout(() => statusBadge.style.opacity = '1', 200);
+        });
 
         eventSource.addEventListener('aircondition', function (e) {
             const status = document.getElementById('aircondition-status');
@@ -258,21 +203,29 @@
         });
 
         eventSource.addEventListener('temperature', function(e) {
+            const temp = parseFloat(e.data);
             document.getElementById('temperature-val').textContent = e.data;
+            const emojiEl = document.getElementById('temp-emoji');
+            if (temp < 10) emojiEl.textContent = '❄️';
+            else if (temp < 20) emojiEl.textContent = '🌡️';
+            else if (temp < 30) emojiEl.textContent = '☀️';
+            else emojiEl.textContent = '🔥';
         });
 
         eventSource.addEventListener('weather', function(e) {
             document.getElementById('weather-val').textContent = e.data;
+            const emojiEl = document.getElementById('weather-emoji');
+            const condition = e.data.toUpperCase();
+            if (condition.includes('SUNNY')) emojiEl.textContent = '☀️';
+            else if (condition.includes('CLOUDY')) emojiEl.textContent = '☁️';
+            else if (condition.includes('RAINY')) emojiEl.textContent = '🌧️';
+            else emojiEl.textContent = '🛸';
         });
 
         eventSource.addEventListener('fridge-update', function(e) {
             console.log("Fridge updated, reloading data...");
             setTimeout(() => window.location.reload(), 1000); 
         });
-
-        eventSource.onerror = function(e) {
-            console.error("SSE Error: ", e);
-        };
 
         // AJAX Form Handler
         document.querySelectorAll('.ajax-form').forEach(form => {
@@ -283,7 +236,6 @@
                 const method = this.method;
                 const formData = new FormData(this);
 
-                // If the button clicked has a value (like in Weather or Blinds), add it to formData
                 if (e.submitter && e.submitter.name && e.submitter.value) {
                     formData.append(e.submitter.name, e.submitter.value);
                 }
@@ -312,18 +264,6 @@
             });
         });
     </script>
-
-    <div class="section">
-        <h2>Run Instructions</h2>
-        <p>To restart the system in a different mode, use the following commands:</p>
-        <ul>
-            <li><strong>Internal Simulation (Default):</strong><br><code>./gradlew run</code></li>
-            <li><strong>External MQTT Simulation:</strong><br><code>./gradlew run --args="--external"</code></li>
-            <li><strong>Manual Mode (No Simulation):</strong><br><code>./gradlew run --args="--manual"</code></li>
-        </ul>
-        <p><small><em>Note: You can also use <code>-Dexec.args="--flag"</code> instead of
-                    <code>--args="--flag"</code>.</em></small></p>
-    </div>
 </body>
 
 </html>
