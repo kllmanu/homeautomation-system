@@ -16,6 +16,7 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
     public record StopMovie() implements MediaStationCommand {}
     public record Subscribe(ActorRef<MediaStationStateChanged> subscriber) implements MediaStationCommand {}
     public record MediaStationStateChanged(boolean playing) {}
+    public record ReadState(ActorRef<MediaStationStateChanged> replyTo) implements MediaStationCommand {}
 
     public static Behavior<MediaStationCommand> create(ActorRef<Blinds.BlindsCommand> blinds) {
         return Behaviors.setup(context -> new MediaStation(context, blinds));
@@ -37,8 +38,14 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
                 .onMessage(PlayMovie.class, this::onPlayMovie)
                 .onMessage(StopMovie.class, this::onStopMovie)
                 .onMessage(Subscribe.class, this::onSubscribe)
+                .onMessage(ReadState.class, this::onReadState)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<MediaStationCommand> onReadState(ReadState r) {
+        r.replyTo().tell(new MediaStationStateChanged(this.moviePlaying));
+        return this;
     }
 
     private Behavior<MediaStationCommand> onSubscribe(Subscribe s) {

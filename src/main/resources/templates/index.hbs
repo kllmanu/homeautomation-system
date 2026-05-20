@@ -48,7 +48,7 @@
         <h2>Device Controls</h2>
         
         <div style="margin-bottom: 1em;">
-            <h3>AirCondition <span id="aircondition-status" class="status-badge">UNKNOWN</span></h3>
+            <h3>AirCondition <span id="aircondition-status" class="status-badge {{acClass}}">{{acState}}</span></h3>
             <form action="/aircondition" method="post" style="display: inline;" class="ajax-form">
                 <button name="value" value="true" type="submit">Turn ON</button>
             </form>
@@ -58,7 +58,7 @@
         </div>
 
         <div style="margin-bottom: 1em;">
-            <h3>MediaStation <span id="mediastation-status" class="status-badge">UNKNOWN</span></h3>
+            <h3>MediaStation <span id="mediastation-status" class="status-badge {{mediaClass}}">{{mediaState}}</span></h3>
             <form action="/mediastation-play" method="post" style="display: inline;" class="ajax-form">
                 <button type="submit">Play Movie</button>
             </form>
@@ -68,7 +68,7 @@
         </div>
 
         <div style="margin-bottom: 1em;">
-            <h3>Blinds <span id="blinds-status" class="status-badge">UNKNOWN</span></h3>
+            <h3>Blinds <span id="blinds-status" class="status-badge {{blindsClass}}">{{blindsState}}</span></h3>
             <form action="/blinds" method="post" style="display: inline;" class="ajax-form">
                 <button name="value" value="true" type="submit">Close Blinds</button>
             </form>

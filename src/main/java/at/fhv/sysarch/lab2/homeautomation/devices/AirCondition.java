@@ -22,6 +22,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     public record EnrichedTemperature(Temperature temperature) implements AirConditionCommand { }
     public record Subscribe(ActorRef<AirConditionStateChanged> subscriber) implements AirConditionCommand { }
     public record AirConditionStateChanged(boolean poweredOn) { }
+    public record ReadState(ActorRef<AirConditionStateChanged> replyTo) implements AirConditionCommand { }
 
     // factory function called when a new instance of this actor is created
     public static Behavior<AirConditionCommand> create(String identifier) {
@@ -47,8 +48,14 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
                 .onMessage(PowerAirCondition.class, this::onPowerAirCondition)
                 .onMessage(EnrichedTemperature.class, this::onReadTemperature)
                 .onMessage(Subscribe.class, this::onSubscribe)
+                .onMessage(ReadState.class, this::onReadState)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<AirConditionCommand> onReadState(ReadState r) {
+        r.replyTo().tell(new AirConditionStateChanged(this.poweredOn));
+        return this;
     }
 
     private Behavior<AirConditionCommand> onSubscribe(Subscribe s) {

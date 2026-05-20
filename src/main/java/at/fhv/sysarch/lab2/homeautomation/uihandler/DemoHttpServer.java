@@ -30,8 +30,12 @@ import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.stream.OverflowStrategy;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import org.apache.pekko.actor.typed.ActorSystem;
+import org.apache.pekko.actor.typed.javadsl.AskPattern;
 
 public class DemoHttpServer extends AllDirectives {
 
@@ -103,20 +107,52 @@ public class DemoHttpServer extends AllDirectives {
         }
     }
 
-    public Route createRoute() {
+    public Route createRoute(ActorSystem<Void> system) {
         return concat(
                 pathSingleSlash(() ->
                         get(() -> {
-                            Map<String, Object> model = new HashMap<>();
-                            model.put("title", "Home Automation Environment Control");
-                            model.put("mode", this.mode);
-                            model.put("isManual", this.mode.equals("MANUAL"));
-                            try {
-                                String rendered = indexTemplate.apply(model);
-                                return complete(HttpEntities.create(ContentTypes.TEXT_HTML_UTF8, rendered));
-                            } catch (IOException e) {
-                                return complete("Error rendering template: " + e.getMessage());
-                            }
+                            CompletionStage<AirCondition.AirConditionStateChanged> acStage = AskPattern.ask(
+                                    airCondition,
+                                    AirCondition.ReadState::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+                            CompletionStage<Blinds.BlindsStateChanged> blindsStage = AskPattern.ask(
+                                    blinds,
+                                    Blinds.ReadState::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+                            CompletionStage<MediaStation.MediaStationStateChanged> mediaStage = AskPattern.ask(
+                                    mediaStation,
+                                    MediaStation.ReadState::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+
+                            return onSuccess(acStage.thenCombine(blindsStage, Pair::new)
+                                            .thenCombine(mediaStage, (pair, med) -> {
+                                                Map<String, Object> model = new HashMap<>();
+                                                model.put("title", "Home Automation Environment Control");
+                                                model.put("mode", this.mode);
+                                                model.put("isManual", this.mode.equals("MANUAL"));
+                                                model.put("acState", pair.first().poweredOn() ? "ON" : "OFF");
+                                                model.put("acClass", pair.first().poweredOn() ? "status-on" : "status-off");
+                                                model.put("blindsState", pair.second().closed() ? "CLOSED" : "OPEN");
+                                                model.put("blindsClass", pair.second().closed() ? "status-closed" : "status-open");
+                                                model.put("mediaState", med.playing() ? "PLAYING" : "IDLE");
+                                                model.put("mediaClass", med.playing() ? "status-playing" : "status-idle");
+                                                return model;
+                                            }),
+                                    model -> {
+                                        try {
+                                            String rendered = indexTemplate.apply(model);
+                                            return complete(HttpEntities.create(ContentTypes.TEXT_HTML_UTF8, rendered));
+                                        } catch (IOException e) {
+                                            return complete("Error rendering template: " + e.getMessage());
+                                        }
+                                    }
+                            );
                         })
                 ),
                 path("events", () ->

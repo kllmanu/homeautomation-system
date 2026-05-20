@@ -19,6 +19,7 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     public record ControlBlinds(boolean close) implements BlindsCommand {}
     public record Subscribe(ActorRef<BlindsStateChanged> subscriber) implements BlindsCommand {}
     public record BlindsStateChanged(boolean closed) {}
+    public record ReadState(ActorRef<BlindsStateChanged> replyTo) implements BlindsCommand {}
 
     public static Behavior<BlindsCommand> create() {
         return Behaviors.setup(Blinds::new);
@@ -41,8 +42,14 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
                 .onMessage(MediaStationPlaying.class, this::onMediaStationPlaying)
                 .onMessage(ControlBlinds.class, this::onControlBlinds)
                 .onMessage(Subscribe.class, this::onSubscribe)
+                .onMessage(ReadState.class, this::onReadState)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<BlindsCommand> onReadState(ReadState r) {
+        r.replyTo().tell(new BlindsStateChanged(this.blindsClosed));
+        return this;
     }
 
     private Behavior<BlindsCommand> onSubscribe(Subscribe s) {
