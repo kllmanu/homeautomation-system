@@ -1,23 +1,31 @@
 package at.fhv.sysarch.lab2.homeautomation.external.grpc;
 
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.actor.typed.Scheduler;
+import org.apache.pekko.actor.typed.javadsl.AskPattern;
+
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 
 public class GroceryStoreServiceImpl implements GroceryStore {
 
+    private final ActorRef<MessageReceiver.IncomingOrder> messageReceiver;
+    private final Scheduler scheduler;
+
+    public GroceryStoreServiceImpl(ActorRef<MessageReceiver.IncomingOrder> messageReceiver, Scheduler scheduler) {
+        this.messageReceiver = messageReceiver;
+        this.scheduler = scheduler;
+    }
+
     @Override
     public CompletionStage<OrderReceipt> processOrder(OrderRequest in) {
-        System.out.println("GroceryStore: Processing order for " + in.getQuantity() + "x " + in.getProductName());
+        System.out.println("GroceryStore (gRPC): Received order for " + in.getProductName());
 
-        OrderReceipt receipt = OrderReceipt.newBuilder()
-                .setOrderId(UUID.randomUUID().toString())
-                .setProductName(in.getProductName())
-                .setQuantity(in.getQuantity())
-                .setTotalCost(in.getQuantity() * in.getPrice())
-                .setSuccessful(true)
-                .build();
-
-        return CompletableFuture.completedFuture(receipt);
+        return AskPattern.ask(
+                messageReceiver,
+                replyTo -> new MessageReceiver.IncomingOrder(in, replyTo),
+                Duration.ofSeconds(5),
+                scheduler
+        );
     }
 }
