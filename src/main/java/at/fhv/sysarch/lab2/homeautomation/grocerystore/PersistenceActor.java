@@ -1,4 +1,4 @@
-package at.fhv.sysarch.lab2.homeautomation.external.grpc;
+package at.fhv.sysarch.lab2.homeautomation.grocerystore;
 
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -13,15 +13,15 @@ import java.util.List;
 
 public class PersistenceActor extends EventSourcedBehavior<PersistenceActor.Command, PersistenceActor.Event, PersistenceActor.State> {
 
-    public record PersistentReceipt(String orderId, String productName, int quantity, double totalCost, boolean successful) implements CborSerializable {}
+    public record PersistentReceipt(String orderId, String productName, int quantity, double totalCost, boolean successful) implements JsonSerializable {}
 
-    public interface Command extends CborSerializable {}
+    public interface Command extends JsonSerializable {}
     public record PersistOrder(OrderReceipt receipt, ActorRef<OrderReceipt> replyTo) implements Command {}
 
-    public interface Event extends CborSerializable {}
+    public interface Event extends JsonSerializable {}
     public record OrderSaved(PersistentReceipt receipt) implements Event {}
 
-    public static class State implements CborSerializable {
+    public static class State implements JsonSerializable {
         private final List<PersistentReceipt> orders = new ArrayList<>();
 
         public void applyEvent(Event event) {

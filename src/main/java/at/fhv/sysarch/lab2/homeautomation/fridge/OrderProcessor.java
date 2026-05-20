@@ -1,8 +1,8 @@
 package at.fhv.sysarch.lab2.homeautomation.fridge;
 
-import at.fhv.sysarch.lab2.homeautomation.external.grpc.GroceryStore;
-import at.fhv.sysarch.lab2.homeautomation.external.grpc.OrderRequest;
-import at.fhv.sysarch.lab2.homeautomation.external.grpc.OrderReceipt;
+import at.fhv.sysarch.lab2.homeautomation.grocerystore.GroceryStore;
+import at.fhv.sysarch.lab2.homeautomation.grocerystore.OrderRequest;
+import at.fhv.sysarch.lab2.homeautomation.grocerystore.OrderReceipt;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;

@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-package at.fhv.sysarch.lab2.homeautomation.external.grpc;
+package at.fhv.sysarch.lab2.homeautomation.grocerystore;
 
 service GroceryStore {
   rpc ProcessOrder (OrderRequest) returns (OrderReceipt) {}

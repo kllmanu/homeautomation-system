@@ -85,11 +85,5 @@ task runServer(type: JavaExec) {
 
 task runGroceryStore(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    main = 'at.fhv.sysarch.lab2.homeautomation.external.grpc.GroceryStoreServer'
-}
-
-task runRecon(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'at.fhv.sysarch.lab2.homeautomation.external.MqttReconnaissance'
-    standardInput = System.in
+    main = 'at.fhv.sysarch.lab2.homeautomation.grocerystore.GroceryStoreServer'
 }

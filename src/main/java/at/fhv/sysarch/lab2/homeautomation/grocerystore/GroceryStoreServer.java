@@ -1,4 +1,4 @@
-package at.fhv.sysarch.lab2.homeautomation.external.grpc;
+package at.fhv.sysarch.lab2.homeautomation.grocerystore;
 
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;

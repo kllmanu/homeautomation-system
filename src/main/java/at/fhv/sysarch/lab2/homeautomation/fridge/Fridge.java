@@ -1,7 +1,7 @@
 package at.fhv.sysarch.lab2.homeautomation.fridge;
 
-import at.fhv.sysarch.lab2.homeautomation.external.grpc.GroceryStore;
-import at.fhv.sysarch.lab2.homeautomation.external.grpc.GroceryStoreClient;
+import at.fhv.sysarch.lab2.homeautomation.grocerystore.GroceryStore;
+import at.fhv.sysarch.lab2.homeautomation.grocerystore.GroceryStoreClient;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
