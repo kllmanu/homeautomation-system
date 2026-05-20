@@ -1,0 +1,14 @@
+%%{init: {'themeVariables': { 'background': '#ffffff' }}}%%
+sequenceDiagram
+    autonumber
+    participant UI as DemoHttpServer
+    participant AC as AirCondition
+    participant BC as SSE Broadcaster
+
+    Note over UI, AC: User clicks "Turn ON" in the UI
+    UI->>AC: Tell: PowerAirCondition(true)
+    Note right of UI: Request returns immediately
+    
+    AC->>AC: Set poweredOn = true
+    AC->>BC: Tell: AirConditionStateChanged(true)
+    Note right of BC: Broadcaster sends SSE to all clients

@@ -1,0 +1,12 @@
+%%{init: {'themeVariables': { 'background': '#ffffff' }}}%%
+sequenceDiagram
+    autonumber
+    participant UI as DemoHttpServer
+    participant AC as AirCondition
+
+    Note over UI, AC: User reloads the dashboard page
+    UI->>AC: Ask: ReadState(replyTo)
+    
+    AC-->>UI: AirConditionStateChanged(poweredOn=true)
+    
+    Note right of UI: UI renders "ON" badge based on response

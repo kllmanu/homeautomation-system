@@ -37,11 +37,17 @@ Folgende Interaktionsmuster wurden verwendet:
 
 ### 1. [Tell (Fire-and-Forget)](https://pekko.apache.org/docs/pekko/current/typed/interaction-patterns.html#fire-and-forget)
 Wird für einfache Befehle verwendet, bei denen keine unmittelbare Bestätigung durch den Absender erforderlich ist.
+
+![Sequenzdiagramm - Tell Pattern](docs/aircondition_tell_sequence.svg)
+
 - **Beispiel**: Die UI weist die Klimaanlage (`AirCondition`) an, sich ein- oder auszuschalten.
 - **Beispiel**: Der Kühlschrank (`Fridge`) verarbeitet den Verbrauch eines Produkts.
 
 ### 2. [Ask (Request-Response)](https://pekko.apache.org/docs/pekko/current/typed/interaction-patterns.html#request-response)
 Wird verwendet, wenn der Absender eine Bestätigung oder Daten vom Actor benötigt.
+
+![Sequenzdiagramm - Ask Pattern](docs/aircondition_ask_sequence.svg)
+
 - **Beispiel**: `DemoHttpServer` fragt bei der `MediaStation` an, einen Film abzuspielen. Die UI wartet auf eine `PlayMovieResponse`, um Erfolgs- oder Fehlermeldungen anzuzeigen.
 - **Beispiel**: `DemoHttpServer` fragt beim Kühlschrank (`Fridge`) die Bestellung von Produkten an, wobei Kapazitätsgrenzen validiert werden.
 
