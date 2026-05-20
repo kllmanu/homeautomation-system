@@ -8,6 +8,8 @@ import org.apache.pekko.actor.typed.receptionist.Receptionist;
 import org.apache.pekko.actor.typed.receptionist.ServiceKey;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.WeatherEnvironmentCommand> {
 
@@ -26,6 +28,8 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
 
     public record SetWeatherExternal(Weather weather) implements WeatherEnvironmentCommand {}
 
+    public record Subscribe(ActorRef<WeatherResponse> subscriber) implements WeatherEnvironmentCommand {}
+
     public record WeatherResponse(Weather weather) {}
 
     private enum WeatherTick implements WeatherEnvironmentCommand {
@@ -33,6 +37,7 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
     }
 
     private Weather weather;
+    private final List<ActorRef<WeatherResponse>> subscribers = new ArrayList<>();
 
     public static Behavior<WeatherEnvironmentCommand> create(Weather initialWeather) {
         return Behaviors.setup(context -> {
@@ -57,8 +62,22 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
                 .onMessage(GetWeather.class, this::onGetWeather)
                 .onMessage(SetWeather.class, this::onSetWeather)
                 .onMessage(SetWeatherExternal.class, this::onSetWeatherExternal)
+                .onMessage(Subscribe.class, this::onSubscribe)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<WeatherEnvironmentCommand> onSubscribe(Subscribe s) {
+        this.subscribers.add(s.subscriber());
+        s.subscriber().tell(new WeatherResponse(this.weather));
+        return this;
+    }
+
+    private void notifySubscribers() {
+        WeatherResponse res = new WeatherResponse(this.weather);
+        for (ActorRef<WeatherResponse> sub : subscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<WeatherEnvironmentCommand> onGetWeather(GetWeather g) {
@@ -69,19 +88,22 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
     private Behavior<WeatherEnvironmentCommand> onSetWeather(SetWeather s) {
         this.weather = s.weather();
         getContext().getLog().info("WeatherEnvironment manually set to {}", this.weather);
+        notifySubscribers();
         return this;
     }
 
     private Behavior<WeatherEnvironmentCommand> onSetWeatherExternal(SetWeatherExternal s) {
-        // Not used in internal mode
+        this.weather = s.weather();
+        notifySubscribers();
         return this;
     }
 
     private Behavior<WeatherEnvironmentCommand> onWeatherTick() {
         // Change weather randomly
         Weather[] weathers = Weather.values();
-        this.weather = weathers[(int) (Math.random() * weathers.length)];
+        this.weather = weathers[(int) (Math.random() * (weathers.length - 1))]; // Exclude UNKNOWN
         getContext().getLog().info("WeatherEnvironment updated to weather: {}", this.weather);
+        notifySubscribers();
         return this;
     }
 

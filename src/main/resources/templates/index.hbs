@@ -97,6 +97,20 @@
         <p>Current Simulation Mode: <strong>{{mode}}</strong></p>
     </div>
 
+    <div class="section">
+        <h2>Environment Telemetry</h2>
+        <div style="display: flex; justify-content: space-around; text-align: center;">
+            <div>
+                <div style="font-size: 0.8em; color: #fff; margin-bottom: 5px;">AMBIENT_TEMP</div>
+                <div style="font-size: 2.5em; font-weight: bold;"><span id="temperature-val">{{temperature}}</span>°C</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8em; color: #fff; margin-bottom: 5px;">WEATHER_SENSOR</div>
+                <div id="weather-val" style="font-size: 2.5em; font-weight: bold; text-transform: uppercase;">{{weather}}</div>
+            </div>
+        </div>
+    </div>
+
     {{#if isManual}}
     <div class="section">
         <h2>Temperature Control</h2>
@@ -181,13 +195,21 @@
             status.className = 'status-badge ' + (e.data === 'CLOSED' ? 'status-closed' : 'status-open');
         });
 
-        eventSource.addEventListener('mediastation', function (e) {
+        eventSource.addEventListener('mediastation', function(e) {
             const status = document.getElementById('mediastation-status');
             status.textContent = e.data;
             status.className = 'status-badge ' + (e.data === 'PLAYING' ? 'status-playing' : 'status-idle');
         });
 
-        eventSource.onerror = function (e) {
+        eventSource.addEventListener('temperature', function(e) {
+            document.getElementById('temperature-val').textContent = e.data;
+        });
+
+        eventSource.addEventListener('weather', function(e) {
+            document.getElementById('weather-val').textContent = e.data;
+        });
+
+        eventSource.onerror = function(e) {
             console.error("SSE Error: ", e);
         };
 

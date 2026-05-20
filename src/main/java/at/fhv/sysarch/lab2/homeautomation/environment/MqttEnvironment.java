@@ -13,6 +13,9 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnvironmentCommand> {
 
     public interface MqttEnvironmentCommand {}
@@ -23,6 +26,8 @@ public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnviro
 
     private double temperature = 20.0;
     private WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.SUNNY;
+    private final List<ActorRef<TemperatureEnvironment.TemperatureResponse>> tempSubscribers = new ArrayList<>();
+    private final List<ActorRef<WeatherEnvironment.WeatherResponse>> weatherSubscribers = new ArrayList<>();
     private final MqttClient mqttClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -89,11 +94,23 @@ public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnviro
         } else if (cmd instanceof TemperatureEnvironment.SetTemperature s) {
             this.temperature = s.value();
             getContext().getLog().info("MqttEnvironment (Temperature) manually overridden to {}°C", this.temperature);
+            notifyTempSubscribers();
         } else if (cmd instanceof TemperatureEnvironment.SetTemperatureExternal s) {
             this.temperature = s.value();
             getContext().getLog().info("MqttEnvironment (Temperature) updated from MQTT to {}°C", this.temperature);
+            notifyTempSubscribers();
+        } else if (cmd instanceof TemperatureEnvironment.Subscribe s) {
+            this.tempSubscribers.add(s.subscriber());
+            s.subscriber().tell(new TemperatureEnvironment.TemperatureResponse(this.temperature));
         }
         return this;
+    }
+
+    private void notifyTempSubscribers() {
+        TemperatureEnvironment.TemperatureResponse res = new TemperatureEnvironment.TemperatureResponse(this.temperature);
+        for (ActorRef<TemperatureEnvironment.TemperatureResponse> sub : tempSubscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<MqttEnvironmentCommand> onWeatherCommand(WeatherEnvironment.WeatherEnvironmentCommand cmd) {
@@ -102,11 +119,23 @@ public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnviro
         } else if (cmd instanceof WeatherEnvironment.SetWeather s) {
             this.weather = s.weather();
             getContext().getLog().info("MqttEnvironment (Weather) manually overridden to {}", this.weather);
+            notifyWeatherSubscribers();
         } else if (cmd instanceof WeatherEnvironment.SetWeatherExternal s) {
             this.weather = s.weather();
             getContext().getLog().info("MqttEnvironment (Weather) updated from MQTT to {}", this.weather);
+            notifyWeatherSubscribers();
+        } else if (cmd instanceof WeatherEnvironment.Subscribe s) {
+            this.weatherSubscribers.add(s.subscriber());
+            s.subscriber().tell(new WeatherEnvironment.WeatherResponse(this.weather));
         }
         return this;
+    }
+
+    private void notifyWeatherSubscribers() {
+        WeatherEnvironment.WeatherResponse res = new WeatherEnvironment.WeatherResponse(this.weather);
+        for (ActorRef<WeatherEnvironment.WeatherResponse> sub : weatherSubscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<MqttEnvironmentCommand> onMqttMessageArrived(MqttMessageArrived m) {

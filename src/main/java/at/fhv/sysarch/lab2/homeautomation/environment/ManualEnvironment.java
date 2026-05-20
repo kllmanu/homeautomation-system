@@ -9,6 +9,9 @@ import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 import org.apache.pekko.actor.typed.receptionist.Receptionist;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ManualEnvironment extends AbstractBehavior<ManualEnvironment.ManualEnvironmentCommand> {
 
     public interface ManualEnvironmentCommand {}
@@ -18,6 +21,8 @@ public class ManualEnvironment extends AbstractBehavior<ManualEnvironment.Manual
 
     private double temperature = Double.NaN;
     private WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.UNKNOWN;
+    private final List<ActorRef<TemperatureEnvironment.TemperatureResponse>> tempSubscribers = new ArrayList<>();
+    private final List<ActorRef<WeatherEnvironment.WeatherResponse>> weatherSubscribers = new ArrayList<>();
 
     public static Behavior<ManualEnvironmentCommand> create() {
         return Behaviors.setup(ManualEnvironment::new);
@@ -54,8 +59,19 @@ public class ManualEnvironment extends AbstractBehavior<ManualEnvironment.Manual
         } else if (cmd instanceof TemperatureEnvironment.SetTemperature s) {
             this.temperature = s.value();
             getContext().getLog().info("ManualEnvironment (Temperature) set to {}°C", this.temperature);
+            notifyTempSubscribers();
+        } else if (cmd instanceof TemperatureEnvironment.Subscribe s) {
+            this.tempSubscribers.add(s.subscriber());
+            s.subscriber().tell(new TemperatureEnvironment.TemperatureResponse(this.temperature));
         }
         return this;
+    }
+
+    private void notifyTempSubscribers() {
+        TemperatureEnvironment.TemperatureResponse res = new TemperatureEnvironment.TemperatureResponse(this.temperature);
+        for (ActorRef<TemperatureEnvironment.TemperatureResponse> sub : tempSubscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<ManualEnvironmentCommand> onWeatherCommand(WeatherEnvironment.WeatherEnvironmentCommand cmd) {
@@ -64,8 +80,19 @@ public class ManualEnvironment extends AbstractBehavior<ManualEnvironment.Manual
         } else if (cmd instanceof WeatherEnvironment.SetWeather s) {
             this.weather = s.weather();
             getContext().getLog().info("ManualEnvironment (Weather) set to {}", this.weather);
+            notifyWeatherSubscribers();
+        } else if (cmd instanceof WeatherEnvironment.Subscribe s) {
+            this.weatherSubscribers.add(s.subscriber());
+            s.subscriber().tell(new WeatherEnvironment.WeatherResponse(this.weather));
         }
         return this;
+    }
+
+    private void notifyWeatherSubscribers() {
+        WeatherEnvironment.WeatherResponse res = new WeatherEnvironment.WeatherResponse(this.weather);
+        for (ActorRef<WeatherEnvironment.WeatherResponse> sub : weatherSubscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<ManualEnvironmentCommand> onPostStop() {

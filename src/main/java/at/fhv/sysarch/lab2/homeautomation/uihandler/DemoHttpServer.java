@@ -81,18 +81,33 @@ public class DemoHttpServer extends AllDirectives {
             airCondition.tell(new AirCondition.Subscribe(broadcasterContext.messageAdapter(AirCondition.AirConditionStateChanged.class, msg -> msg)));
             blinds.tell(new Blinds.Subscribe(broadcasterContext.messageAdapter(Blinds.BlindsStateChanged.class, msg -> msg)));
             mediaStation.tell(new MediaStation.Subscribe(broadcasterContext.messageAdapter(MediaStation.MediaStationStateChanged.class, msg -> msg)));
+            temperatureEnvironment.tell(new TemperatureEnvironment.Subscribe(broadcasterContext.messageAdapter(TemperatureEnvironment.TemperatureResponse.class, msg -> msg)));
+            weatherEnvironment.tell(new WeatherEnvironment.Subscribe(broadcasterContext.messageAdapter(WeatherEnvironment.WeatherResponse.class, msg -> msg)));
 
             return Behaviors.receive(Object.class)
                     .onMessage(AirCondition.AirConditionStateChanged.class, msg -> {
+                        broadcasterContext.getLog().info("Broadcasting AC state: {}", msg.poweredOn());
                         queue.offer(ServerSentEvent.create(msg.poweredOn() ? "ON" : "OFF", "aircondition"));
                         return Behaviors.same();
                     })
                     .onMessage(Blinds.BlindsStateChanged.class, msg -> {
+                        broadcasterContext.getLog().info("Broadcasting Blinds state: {}", msg.closed());
                         queue.offer(ServerSentEvent.create(msg.closed() ? "CLOSED" : "OPEN", "blinds"));
                         return Behaviors.same();
                     })
                     .onMessage(MediaStation.MediaStationStateChanged.class, msg -> {
+                        broadcasterContext.getLog().info("Broadcasting MediaStation state: {}", msg.playing());
                         queue.offer(ServerSentEvent.create(msg.playing() ? "PLAYING" : "IDLE", "mediastation"));
+                        return Behaviors.same();
+                    })
+                    .onMessage(TemperatureEnvironment.TemperatureResponse.class, msg -> {
+                        broadcasterContext.getLog().info("Broadcasting Temperature: {}", msg.value());
+                        queue.offer(ServerSentEvent.create(String.format("%.1f", msg.value()), "temperature"));
+                        return Behaviors.same();
+                    })
+                    .onMessage(WeatherEnvironment.WeatherResponse.class, msg -> {
+                        broadcasterContext.getLog().info("Broadcasting Weather: {}", msg.weather());
+                        queue.offer(ServerSentEvent.create(msg.weather().toString(), "weather"));
                         return Behaviors.same();
                     })
                     .build();
@@ -129,19 +144,35 @@ public class DemoHttpServer extends AllDirectives {
                                     Duration.ofSeconds(2),
                                     system.scheduler()
                             );
+                            CompletionStage<TemperatureEnvironment.TemperatureResponse> tempStage = AskPattern.ask(
+                                    temperatureEnvironment,
+                                    TemperatureEnvironment.GetTemperature::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+                            CompletionStage<WeatherEnvironment.WeatherResponse> weatherStage = AskPattern.ask(
+                                    weatherEnvironment,
+                                    WeatherEnvironment.GetWeather::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
 
                             return onSuccess(acStage.thenCombine(blindsStage, Pair::new)
-                                            .thenCombine(mediaStage, (pair, med) -> {
+                                            .thenCombine(mediaStage, (pair, med) -> new Pair<>(pair, med))
+                                            .thenCombine(tempStage, (pair, temp) -> new Pair<>(pair, temp))
+                                            .thenCombine(weatherStage, (pair, weather) -> {
                                                 Map<String, Object> model = new HashMap<>();
                                                 model.put("title", "Home Automation Environment Control");
                                                 model.put("mode", this.mode);
                                                 model.put("isManual", this.mode.equals("MANUAL"));
-                                                model.put("acState", pair.first().poweredOn() ? "ON" : "OFF");
-                                                model.put("acClass", pair.first().poweredOn() ? "status-on" : "status-off");
-                                                model.put("blindsState", pair.second().closed() ? "CLOSED" : "OPEN");
-                                                model.put("blindsClass", pair.second().closed() ? "status-closed" : "status-open");
-                                                model.put("mediaState", med.playing() ? "PLAYING" : "IDLE");
-                                                model.put("mediaClass", med.playing() ? "status-playing" : "status-idle");
+                                                model.put("acState", pair.first().first().first().poweredOn() ? "ON" : "OFF");
+                                                model.put("acClass", pair.first().first().first().poweredOn() ? "status-on" : "status-off");
+                                                model.put("blindsState", pair.first().first().second().closed() ? "CLOSED" : "OPEN");
+                                                model.put("blindsClass", pair.first().first().second().closed() ? "status-closed" : "status-open");
+                                                model.put("mediaState", pair.first().second().playing() ? "PLAYING" : "IDLE");
+                                                model.put("mediaClass", pair.first().second().playing() ? "status-playing" : "status-idle");
+                                                model.put("temperature", String.format("%.1f", pair.second().value()));
+                                                model.put("weather", weather.weather().toString());
                                                 return model;
                                             }),
                                     model -> {

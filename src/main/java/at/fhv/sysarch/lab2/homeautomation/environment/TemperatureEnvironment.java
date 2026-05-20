@@ -8,6 +8,8 @@ import org.apache.pekko.actor.typed.receptionist.Receptionist;
 import org.apache.pekko.actor.typed.receptionist.ServiceKey;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironment.TemperatureEnvironmentCommand> {
 
@@ -22,6 +24,8 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
 
     public record SetTemperatureExternal(double value) implements TemperatureEnvironmentCommand {}
 
+    public record Subscribe(ActorRef<TemperatureResponse> subscriber) implements TemperatureEnvironmentCommand {}
+
     public record TemperatureResponse(double value) {}
 
     private enum TemperatureTick implements TemperatureEnvironmentCommand {
@@ -29,6 +33,7 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     }
 
     private double temperature;
+    private final List<ActorRef<TemperatureResponse>> subscribers = new ArrayList<>();
 
     public static Behavior<TemperatureEnvironmentCommand> create(double initialTemperature) {
         return Behaviors.setup(context -> {
@@ -53,8 +58,22 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
                 .onMessage(GetTemperature.class, this::onGetTemperature)
                 .onMessage(SetTemperature.class, this::onSetTemperature)
                 .onMessage(SetTemperatureExternal.class, this::onSetTemperatureExternal)
+                .onMessage(Subscribe.class, this::onSubscribe)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
+    }
+
+    private Behavior<TemperatureEnvironmentCommand> onSubscribe(Subscribe s) {
+        this.subscribers.add(s.subscriber());
+        s.subscriber().tell(new TemperatureResponse(this.temperature));
+        return this;
+    }
+
+    private void notifySubscribers() {
+        TemperatureResponse res = new TemperatureResponse(this.temperature);
+        for (ActorRef<TemperatureResponse> sub : subscribers) {
+            sub.tell(res);
+        }
     }
 
     private Behavior<TemperatureEnvironmentCommand> onGetTemperature(GetTemperature g) {
@@ -65,11 +84,13 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     private Behavior<TemperatureEnvironmentCommand> onSetTemperature(SetTemperature s) {
         this.temperature = s.value();
         getContext().getLog().info("TemperatureEnvironment manually set to {}°C", this.temperature);
+        notifySubscribers();
         return this;
     }
 
     private Behavior<TemperatureEnvironmentCommand> onSetTemperatureExternal(SetTemperatureExternal s) {
-        // Not used in internal mode
+        this.temperature = s.value();
+        notifySubscribers();
         return this;
     }
 
@@ -86,6 +107,7 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
         }
 
         getContext().getLog().info("TemperatureEnvironment updated to {}°C", String.format("%.2f", this.temperature));
+        notifySubscribers();
         return this;
     }
 
