@@ -287,8 +287,21 @@ public class DemoHttpServer extends AllDirectives {
                                 case "beer": p = new FridgeModels.Product("Beer", 0.89, 0.5); break;
                                 default: p = new FridgeModels.Product(name, 1.0, 1.0);
                             }
-                            this.fridge.tell(new FridgeModels.OrderProduct(p, Integer.parseInt(q)));
-                            return complete("Ordering " + q + "x " + name);
+
+                            CompletionStage<FridgeModels.OrderResponse> reply = AskPattern.ask(
+                                    fridge,
+                                    replyTo -> new FridgeModels.OrderProduct(p, Integer.parseInt(q), replyTo),
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+
+                            return onSuccess(reply, response -> {
+                                if (response.success()) {
+                                    return complete(response.message());
+                                } else {
+                                    return complete(org.apache.pekko.http.javadsl.model.StatusCodes.BAD_REQUEST, response.message());
+                                }
+                            });
                         }))))
                 )),
                 path("temperature", () ->
@@ -325,8 +338,19 @@ public class DemoHttpServer extends AllDirectives {
                 path("mediastation-play", () ->
                         post(() -> {
                             System.out.println("Server: Received MediaStation Play request");
-                            this.mediaStation.tell(new MediaStation.PlayMovie());
-                            return complete("MediaStation: Play movie");
+                            CompletionStage<MediaStation.PlayMovieResponse> reply = AskPattern.ask(
+                                    mediaStation,
+                                    MediaStation.PlayMovie::new,
+                                    Duration.ofSeconds(2),
+                                    system.scheduler()
+                            );
+                            return onSuccess(reply, response -> {
+                                if (response.success()) {
+                                    return complete(response.message());
+                                } else {
+                                    return complete(org.apache.pekko.http.javadsl.model.StatusCodes.BAD_REQUEST, response.message());
+                                }
+                            });
                         })
                 ),
                 path("mediastation-stop", () ->

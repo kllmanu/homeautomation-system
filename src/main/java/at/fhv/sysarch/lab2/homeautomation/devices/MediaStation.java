@@ -19,11 +19,13 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
 
     public interface MediaStationCommand {}
 
-    public record PlayMovie() implements MediaStationCommand {}
+    public record PlayMovie(ActorRef<PlayMovieResponse> replyTo) implements MediaStationCommand {}
     public record StopMovie() implements MediaStationCommand {}
     public record Subscribe(ActorRef<MediaStationStateChanged> subscriber) implements MediaStationCommand {}
     public record MediaStationStateChanged(boolean playing) {}
     public record ReadState(ActorRef<MediaStationStateChanged> replyTo) implements MediaStationCommand {}
+
+    public record PlayMovieResponse(boolean success, String message) {}
 
     public static Behavior<MediaStationCommand> create(ActorRef<Topic.Command<Blinds.MediaStationPlaying>> mediaTopic) {
         return Behaviors.setup(context -> {
@@ -73,11 +75,13 @@ public class MediaStation extends AbstractBehavior<MediaStation.MediaStationComm
     private Behavior<MediaStationCommand> onPlayMovie(PlayMovie p) {
         if (moviePlaying) {
             getContext().getLog().warn("MediaStation: A movie is already playing!");
+            p.replyTo().tell(new PlayMovieResponse(false, "A movie is already playing!"));
         } else {
             getContext().getLog().info("MediaStation: Starting movie");
             moviePlaying = true;
             this.mediaTopic.tell(Topic.publish(new Blinds.MediaStationPlaying(true)));
             notifySubscriber();
+            p.replyTo().tell(new PlayMovieResponse(true, "Movie started"));
         }
         return this;
     }

@@ -30,14 +30,14 @@ public class MediaStationTest {
         // 1. Play movie -> Blinds should close
         LoggingTestKit.info("Blinds: Closing")
                 .expect(testKit.system(), () -> {
-                    mediaStation.tell(new MediaStation.PlayMovie());
+                    mediaStation.tell(new MediaStation.PlayMovie(testKit.<MediaStation.PlayMovieResponse>createTestProbe().getRef()));
                     return null;
                 });
 
         // 2. Try to play another movie -> Warning, no change to blinds
         LoggingTestKit.warn("MediaStation: A movie is already playing!")
                 .expect(testKit.system(), () -> {
-                    mediaStation.tell(new MediaStation.PlayMovie());
+                    mediaStation.tell(new MediaStation.PlayMovie(testKit.<MediaStation.PlayMovieResponse>createTestProbe().getRef()));
                     return null;
                 });
 
@@ -59,7 +59,7 @@ public class MediaStationTest {
         // 5. Play movie again -> Blinds should close
         LoggingTestKit.info("Blinds: Closing")
                 .expect(testKit.system(), () -> {
-                    mediaStation.tell(new MediaStation.PlayMovie());
+                    mediaStation.tell(new MediaStation.PlayMovie(testKit.<MediaStation.PlayMovieResponse>createTestProbe().getRef()));
                     return null;
                 });
 

@@ -71,7 +71,7 @@ public class BlindsTest {
         // Test Movie Playing while SUNNY -> Stays Closed
         blinds.tell(new Blinds.WeatherChanged(new WeatherCondition(WeatherEnvironment.Weather.SUNNY, "Condition")));
         LoggingTestKit.info("Blinds: Closing")
-                .withOccurrences(0)
+                .withOccurrences(1) // Should have happened once already due to SUNNY
                 .expect(testKit.system(), () -> {
                     blinds.tell(new Blinds.MediaStationPlaying(true));
                     return null;

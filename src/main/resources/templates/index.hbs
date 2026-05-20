@@ -373,11 +373,21 @@
                     method: method,
                     body: new URLSearchParams(formData)
                 })
-                    .then(response => response.text())
-                    .then(text => {
-                        statusDiv.textContent = text;
-                        statusDiv.style.backgroundColor = '#d4edda';
-                        statusDiv.style.color = '#155724';
+                    .then(response => {
+                        return response.text().then(text => ({
+                            ok: response.ok,
+                            text: text
+                        }));
+                    })
+                    .then(res => {
+                        statusDiv.textContent = res.text;
+                        if (res.ok) {
+                            statusDiv.style.backgroundColor = '#d4edda';
+                            statusDiv.style.color = '#155724';
+                        } else {
+                            statusDiv.style.backgroundColor = '#f8d7da';
+                            statusDiv.style.color = '#721c24';
+                        }
                         statusDiv.style.display = 'block';
                         setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
                     })

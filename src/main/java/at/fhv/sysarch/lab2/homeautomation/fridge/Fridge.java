@@ -116,7 +116,7 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
                 // Auto-reorder if out of stock
                 if (currentCount - 1 == 0) {
                     getContext().getLog().info("Product {} out of stock! Triggering auto-reorder.", p.name());
-                    getContext().getSelf().tell(new FridgeModels.OrderProduct(p, 2)); // Restock 2 items
+                    getContext().getSelf().tell(new FridgeModels.OrderProduct(p, 2, null)); // Restock 2 items
                 }
             } else {
                 getContext().getLog().warn("Cannot consume {}: Out of stock", p.name());
@@ -136,18 +136,24 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
         double newWeight = currentWeight + (o.product().weight() * o.quantity());
 
         if (newVolume > maxVolume) {
-            getContext().getLog().warn("Order rejected: Insufficient volume ({} > {})", newVolume, maxVolume);
+            String msg = String.format("Order rejected: Insufficient volume (%d > %d)", newVolume, maxVolume);
+            getContext().getLog().warn(msg);
+            if (o.replyTo() != null) o.replyTo().tell(new FridgeModels.OrderResponse(false, msg));
             return this;
         }
 
         if (newWeight > maxWeight) {
-            getContext().getLog().warn("Order rejected: Insufficient weight capacity ({}kg > {}kg)", newWeight, maxWeight);
+            String msg = String.format("Order rejected: Insufficient weight capacity (%.1fkg > %.1fkg)", newWeight, maxWeight);
+            getContext().getLog().warn(msg);
+            if (o.replyTo() != null) o.replyTo().tell(new FridgeModels.OrderResponse(false, msg));
             return this;
         }
 
         // Spawn OrderProcessor
         getContext().spawn(OrderProcessor.create(o.product(), o.quantity(), getContext().getSelf(), groceryStoreClient), 
                 "orderProcessor-" + UUID.randomUUID());
+
+        if (o.replyTo() != null) o.replyTo().tell(new FridgeModels.OrderResponse(true, "Order placed successfully"));
 
         return this;
     }

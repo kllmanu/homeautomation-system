@@ -19,7 +19,8 @@ public class FridgeModels {
     public record OrderHistoryResponse(List<Order> orders) {}
 
     public record ConsumeProduct(String productName) implements FridgeCommand {}
-    public record OrderProduct(FridgeModels.Product product, int quantity) implements FridgeCommand {}
+    public record OrderProduct(FridgeModels.Product product, int quantity, ActorRef<OrderResponse> replyTo) implements FridgeCommand {}
+    public record OrderResponse(boolean success, String message) {}
     public record Subscribe(ActorRef<FridgeUpdate> subscriber) implements FridgeCommand {}
     public record FridgeUpdate() {}
 
