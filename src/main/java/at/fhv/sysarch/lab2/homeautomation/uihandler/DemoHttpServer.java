@@ -13,11 +13,7 @@ import com.github.jknack.handlebars.io.TemplateLoader;
 import org.apache.pekko.NotUsed;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;
-import org.apache.pekko.actor.typed.Behavior;
-import org.apache.pekko.actor.typed.javadsl.ActorContext;
-import org.apache.pekko.actor.typed.javadsl.Adapter;
 import org.apache.pekko.actor.typed.javadsl.AskPattern;
-import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.http.javadsl.marshalling.sse.EventStreamMarshalling;
 import org.apache.pekko.http.javadsl.model.ContentTypes;
 import org.apache.pekko.http.javadsl.model.HttpEntities;
@@ -25,12 +21,7 @@ import org.apache.pekko.http.javadsl.model.sse.ServerSentEvent;
 import org.apache.pekko.http.javadsl.server.AllDirectives;
 import org.apache.pekko.http.javadsl.server.Route;
 import org.apache.pekko.japi.Pair;
-import org.apache.pekko.stream.Materializer;
-import org.apache.pekko.stream.OverflowStrategy;
-import org.apache.pekko.stream.javadsl.BroadcastHub;
-import org.apache.pekko.stream.javadsl.Keep;
 import org.apache.pekko.stream.javadsl.Source;
-import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -46,21 +37,12 @@ public class DemoHttpServer extends AllDirectives {
     private final ActorRef<MediaStation.MediaStationCommand> mediaStation;
     private final ActorRef<Blinds.BlindsCommand> blinds;
     private final ActorRef<FridgeModels.FridgeCommand> fridge;
+    
+    private final ActorRef<DashboardActor.DashboardCommand> dashboardActor;
+    private final Source<ServerSentEvent, NotUsed> eventSource;
+    
     private final String mode;
     private final Template indexTemplate;
-
-    // SSE related
-    private final Source<ServerSentEvent, NotUsed> eventSource;
-
-    // Broadcaster protocol
-    public interface BroadcasterCommand {}
-    public record AirConditionUpdate(AirCondition.AirConditionStateChanged msg) implements BroadcasterCommand {}
-    public record BlindsUpdate(Blinds.BlindsStateChanged msg) implements BroadcasterCommand {}
-    public record MediaStationUpdate(MediaStation.MediaStationStateChanged msg) implements BroadcasterCommand {}
-    public record TemperatureUpdate(TemperatureEnvironment.TemperatureResponse msg) implements BroadcasterCommand {}
-    public record WeatherUpdate(WeatherEnvironment.WeatherResponse msg) implements BroadcasterCommand {}
-    public record FridgeUpdate(FridgeModels.FridgeUpdate msg) implements BroadcasterCommand {}
-    private enum Heartbeat implements BroadcasterCommand { INSTANCE }
 
     public DemoHttpServer(ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> temperatureEnvironment,
                           ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnvironment,
@@ -68,83 +50,18 @@ public class DemoHttpServer extends AllDirectives {
                           ActorRef<MediaStation.MediaStationCommand> mediaStation,
                           ActorRef<Blinds.BlindsCommand> blinds,
                           ActorRef<FridgeModels.FridgeCommand> fridge,
-                          String mode,
-                          ActorContext<?> context) {
+                          ActorRef<DashboardActor.DashboardCommand> dashboardActor,
+                          Source<ServerSentEvent, NotUsed> eventSource,
+                          String mode) {
         this.temperatureEnvironment = temperatureEnvironment;
         this.weatherEnvironment = weatherEnvironment;
         this.airCondition = airCondition;
         this.mediaStation = mediaStation;
         this.blinds = blinds;
         this.fridge = fridge;
+        this.dashboardActor = dashboardActor;
+        this.eventSource = eventSource;
         this.mode = mode;
-
-        // Setup SSE with BroadcastHub for multiple clients
-        Materializer mat = Materializer.matFromSystem(Adapter.toClassic(context.getSystem()));
-        
-        Source<ServerSentEvent, SourceQueueWithComplete<ServerSentEvent>> queueSource = 
-            Source.queue(100, OverflowStrategy.dropTail());
-        
-        Pair<SourceQueueWithComplete<ServerSentEvent>, Source<ServerSentEvent, NotUsed>> pair = 
-            queueSource.toMat(BroadcastHub.of(ServerSentEvent.class), Keep.both()).run(mat);
-            
-        SourceQueueWithComplete<ServerSentEvent> queue = pair.first();
-        this.eventSource = pair.second();
-
-        // Spawn broadcaster actor as child of the controller
-        Behavior<BroadcasterCommand> broadcasterBehavior = Behaviors.setup(broadcasterContext -> Behaviors.withTimers(timers -> {
-            timers.startTimerAtFixedRate(Heartbeat.INSTANCE, Duration.ofSeconds(10));
-
-            airCondition.tell(new AirCondition.Subscribe(broadcasterContext.messageAdapter(AirCondition.AirConditionStateChanged.class, AirConditionUpdate::new)));
-            blinds.tell(new Blinds.Subscribe(broadcasterContext.messageAdapter(Blinds.BlindsStateChanged.class, BlindsUpdate::new)));
-            mediaStation.tell(new MediaStation.Subscribe(broadcasterContext.messageAdapter(MediaStation.MediaStationStateChanged.class, MediaStationUpdate::new)));
-            temperatureEnvironment.tell(new TemperatureEnvironment.Subscribe(broadcasterContext.messageAdapter(TemperatureEnvironment.TemperatureResponse.class, TemperatureUpdate::new)));
-            weatherEnvironment.tell(new WeatherEnvironment.Subscribe(broadcasterContext.messageAdapter(WeatherEnvironment.WeatherResponse.class, WeatherUpdate::new)));
-            fridge.tell(new FridgeModels.Subscribe(broadcasterContext.messageAdapter(FridgeModels.FridgeUpdate.class, FridgeUpdate::new)));
-
-            return Behaviors.receive(BroadcasterCommand.class)
-                    .onMessage(AirConditionUpdate.class, u -> {
-                        AirCondition.AirConditionStateChanged msg = u.msg();
-                        broadcasterContext.getLog().info("Broadcasting AC state: {}", msg.poweredOn());
-                        queue.offer(ServerSentEvent.create(msg.poweredOn() ? "ON" : "OFF", "aircondition"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(BlindsUpdate.class, u -> {
-                        Blinds.BlindsStateChanged msg = u.msg();
-                        broadcasterContext.getLog().info("Broadcasting Blinds state: {}", msg.closed());
-                        queue.offer(ServerSentEvent.create(msg.closed() ? "CLOSED" : "OPEN", "blinds"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(MediaStationUpdate.class, u -> {
-                        MediaStation.MediaStationStateChanged msg = u.msg();
-                        broadcasterContext.getLog().info("Broadcasting MediaStation state: {}", msg.playing());
-                        queue.offer(ServerSentEvent.create(msg.playing() ? "PLAYING" : "IDLE", "mediastation"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(TemperatureUpdate.class, u -> {
-                        TemperatureEnvironment.TemperatureResponse msg = u.msg();
-                        broadcasterContext.getLog().info("Broadcasting Temperature: {}", msg.value());
-                        queue.offer(ServerSentEvent.create(String.format("%.1f", msg.value()), "temperature"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(WeatherUpdate.class, u -> {
-                        WeatherEnvironment.WeatherResponse msg = u.msg();
-                        broadcasterContext.getLog().info("Broadcasting Weather: {}", msg.weather());
-                        queue.offer(ServerSentEvent.create(msg.weather().toString(), "weather"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(FridgeUpdate.class, u -> {
-                        broadcasterContext.getLog().info("Broadcasting Fridge update");
-                        queue.offer(ServerSentEvent.create("update", "fridge-update"));
-                        return Behaviors.same();
-                    })
-                    .onMessage(Heartbeat.class, h -> {
-                        queue.offer(ServerSentEvent.create("ping", "heartbeat"));
-                        return Behaviors.same();
-                    })
-                    .build();
-        }));
-        
-        ((ActorContext)context).spawn(broadcasterBehavior, "sseBroadcaster");
 
         TemplateLoader loader = new ClassPathTemplateLoader("/templates", ".hbs");
         Handlebars handlebars = new Handlebars(loader);
@@ -159,76 +76,27 @@ public class DemoHttpServer extends AllDirectives {
         return concat(
                 pathSingleSlash(() ->
                         get(() -> {
-                            CompletionStage<AirCondition.AirConditionStateChanged> acStage = AskPattern.ask(
-                                    airCondition,
-                                    AirCondition.ReadState::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
-                            CompletionStage<Blinds.BlindsStateChanged> blindsStage = AskPattern.ask(
-                                    blinds,
-                                    Blinds.ReadState::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
-                            CompletionStage<MediaStation.MediaStationStateChanged> mediaStage = AskPattern.ask(
-                                    mediaStation,
-                                    MediaStation.ReadState::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
-                            CompletionStage<TemperatureEnvironment.TemperatureResponse> tempStage = AskPattern.ask(
-                                    temperatureEnvironment,
-                                    TemperatureEnvironment.GetTemperature::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
-                            CompletionStage<WeatherEnvironment.WeatherResponse> weatherStage = AskPattern.ask(
-                                    weatherEnvironment,
-                                    WeatherEnvironment.GetWeather::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
+                            CompletionStage<DashboardActor.DashboardState> dashboardStage = AskPattern.ask(
+                                    dashboardActor, DashboardActor.GetDashboardState::new, Duration.ofSeconds(2), system.scheduler());
+                            
                             CompletionStage<FridgeModels.ProductsResponse> fridgeProductsStage = AskPattern.ask(
-                                    fridge,
-                                    FridgeModels.QueryProducts::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
+                                    fridge, FridgeModels.QueryProducts::new, Duration.ofSeconds(2), system.scheduler());
+                            
                             CompletionStage<FridgeModels.OrderHistoryResponse> fridgeHistoryStage = AskPattern.ask(
-                                    fridge,
-                                    FridgeModels.QueryOrderHistory::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
+                                    fridge, FridgeModels.QueryOrderHistory::new, Duration.ofSeconds(2), system.scheduler());
+                            
                             CompletionStage<FridgeModels.FridgeStatusResponse> fridgeStatusStage = AskPattern.ask(
-                                    fridge,
-                                    FridgeModels.QueryFridgeStatus::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
+                                    fridge, FridgeModels.QueryFridgeStatus::new, Duration.ofSeconds(2), system.scheduler());
 
-                            return onSuccess(acStage.thenCombine(blindsStage, Pair::new)
-                                            .thenCombine(mediaStage, Pair::new)
-                                            .thenCombine(tempStage, Pair::new)
-                                            .thenCombine(weatherStage, Pair::new)
+                            return onSuccess(dashboardStage
                                             .thenCombine(fridgeProductsStage, Pair::new)
                                             .thenCombine(fridgeHistoryStage, Pair::new)
                                             .thenCombine(fridgeStatusStage, Pair::new),
                                     combined -> {
-                                        // Nesting: Pair<Pair<Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>, History>, Status>
-                                        var p_history = combined.first(); // Pair<Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>, History>
-                                        var p_products = p_history.first(); // Pair<Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>, Products>
-                                        var p_weather = p_products.first(); // Pair<Pair<Pair<Pair<AC, Blinds>, Media>, Temp>, Weather>
-                                        var p_temp = p_weather.first(); // Pair<Pair<Pair<AC, Blinds>, Media>, Temp>
-                                        var p_media = p_temp.first(); // Pair<Pair<AC, Blinds>, Media>
-                                        var p_ac_blinds = p_media.first(); // Pair<AC, Blinds>
-
-                                        AirCondition.AirConditionStateChanged ac = p_ac_blinds.first();
-                                        Blinds.BlindsStateChanged blindsState = p_ac_blinds.second();
-                                        MediaStation.MediaStationStateChanged media = p_media.second();
-                                        TemperatureEnvironment.TemperatureResponse temp = p_temp.second();
-                                        WeatherEnvironment.WeatherResponse weather = p_weather.second();
+                                        var p_history = combined.first(); 
+                                        var p_products = p_history.first(); 
+                                        
+                                        DashboardActor.DashboardState state = p_products.first();
                                         FridgeModels.ProductsResponse products = p_products.second();
                                         FridgeModels.OrderHistoryResponse history = p_history.second();
                                         FridgeModels.FridgeStatusResponse status = combined.second();
@@ -238,17 +106,17 @@ public class DemoHttpServer extends AllDirectives {
                                         model.put("mode", this.mode);
                                         model.put("isManual", this.mode.equals("MANUAL"));
 
-                                        model.put("acState", ac.poweredOn() ? "ON" : "OFF");
-                                        model.put("acClass", ac.poweredOn() ? "status-on" : "status-off");
-                                        model.put("blindsState", blindsState.closed() ? "CLOSED" : "OPEN");
-                                        model.put("blindsClass", blindsState.closed() ? "status-closed" : "status-open");
-                                        model.put("mediaState", media.playing() ? "PLAYING" : "IDLE");
-                                        model.put("mediaClass", media.playing() ? "status-playing" : "status-idle");
+                                        model.put("acState", state.acOn() ? "ON" : "OFF");
+                                        model.put("acClass", state.acOn() ? "status-on" : "status-off");
+                                        model.put("blindsState", state.blindsClosed() ? "CLOSED" : "OPEN");
+                                        model.put("blindsClass", state.blindsClosed() ? "status-closed" : "status-open");
+                                        model.put("mediaState", state.mediaPlaying() ? "PLAYING" : "IDLE");
+                                        model.put("mediaClass", state.mediaPlaying() ? "status-playing" : "status-idle");
                                         
-                                        model.put("temperature", String.format("%.1f", temp.value()));
-                                        model.put("tempEmoji", temp.value() < 10 ? "❄️" : (temp.value() < 20 ? "🌡️" : (temp.value() < 30 ? "☀️" : "🔥")));
+                                        model.put("temperature", String.format("%.1f", state.temperature()));
+                                        model.put("tempEmoji", state.temperature() < 10 ? "❄️" : (state.temperature() < 20 ? "🌡️" : (state.temperature() < 30 ? "☀️" : "🔥")));
                                         
-                                        String wString = weather.weather().toString();
+                                        String wString = state.weather();
                                         model.put("weather", wString);
                                         model.put("weatherEmoji", wString.contains("SUNNY") ? "☀️" : (wString.contains("CLOUDY") ? "☁️" : (wString.contains("RAINY") ? "🌧️" : "🛸")));
                                         
@@ -272,14 +140,12 @@ public class DemoHttpServer extends AllDirectives {
                 path("events", () ->
                         get(() -> completeOK(eventSource, EventStreamMarshalling.toEventStream()))
                 ),
-                path("hello", () -> get(() -> complete("<h1>Say hello to pekko-http</h1>"))),
                 pathPrefix("fridge", () -> concat(
                         path("consume", () -> post(() -> formField("productName", name -> {
                             this.fridge.tell(new FridgeModels.ConsumeProduct(name));
                             return complete("Consumed " + name);
                         }))),
                         path("order", () -> post(() -> formField("productName", name -> formField("quantity", q -> {
-                            // Assign realistic data based on selected product
                             FridgeModels.Product p;
                             switch (name.toLowerCase()) {
                                 case "eggs": p = new FridgeModels.Product("Eggs", 2.99, 0.6); break;
@@ -289,10 +155,8 @@ public class DemoHttpServer extends AllDirectives {
                             }
 
                             CompletionStage<FridgeModels.OrderResponse> reply = AskPattern.ask(
-                                    fridge,
-                                    replyTo -> new FridgeModels.OrderProduct(p, Integer.parseInt(q), replyTo),
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
+                                    fridge, replyTo -> new FridgeModels.OrderProduct(p, Integer.parseInt(q), replyTo),
+                                    Duration.ofSeconds(2), system.scheduler()
                             );
 
                             return onSuccess(reply, response -> {
@@ -304,67 +168,44 @@ public class DemoHttpServer extends AllDirectives {
                             });
                         }))))
                 )),
-                path("temperature", () ->
-                        post(() -> {
-                            if (!this.mode.equals("MANUAL")) {
-                                return complete("Manual override is disabled in " + this.mode + " mode");
-                            }
+                path("temperature", () -> post(() -> {
+                            if (!this.mode.equals("MANUAL")) return complete("Manual override is disabled");
                             return formField("value", value -> {
-                                double temp = Double.parseDouble(value);
-                                this.temperatureEnvironment.tell(new TemperatureEnvironment.SetTemperature(temp));
-                                return complete("Temperature set to " + temp);
+                                this.temperatureEnvironment.tell(new TemperatureEnvironment.SetTemperature(Double.parseDouble(value)));
+                                return complete("Temperature set");
                             });
                         })
                 ),
-                path("weather", () ->
-                        post(() -> {
-                            if (!this.mode.equals("MANUAL")) {
-                                return complete("Manual override is disabled in " + this.mode + " mode");
-                            }
+                path("weather", () -> post(() -> {
+                            if (!this.mode.equals("MANUAL")) return complete("Manual override is disabled");
                             return formField("value", value -> {
-                                WeatherEnvironment.Weather weather = WeatherEnvironment.Weather.valueOf(value.toUpperCase());
-                                this.weatherEnvironment.tell(new WeatherEnvironment.SetWeather(weather));
-                                return complete("Weather set to " + weather);
+                                this.weatherEnvironment.tell(new WeatherEnvironment.SetWeather(WeatherEnvironment.Weather.valueOf(value.toUpperCase())));
+                                return complete("Weather set");
                             });
                         })
                 ),
-                path("aircondition", () ->
-                        post(() -> formField("value", value -> {
-                            boolean power = Boolean.parseBoolean(value);
-                            this.airCondition.tell(new AirCondition.PowerAirCondition(power));
-                            return complete("AirCondition power set to " + power);
+                path("aircondition", () -> post(() -> formField("value", value -> {
+                            this.airCondition.tell(new AirCondition.PowerAirCondition(Boolean.parseBoolean(value)));
+                            return complete("AirCondition toggled");
                         }))
                 ),
-                path("mediastation-play", () ->
-                        post(() -> {
-                            System.out.println("Server: Received MediaStation Play request");
+                path("mediastation-play", () -> post(() -> {
                             CompletionStage<MediaStation.PlayMovieResponse> reply = AskPattern.ask(
-                                    mediaStation,
-                                    MediaStation.PlayMovie::new,
-                                    Duration.ofSeconds(2),
-                                    system.scheduler()
-                            );
+                                    mediaStation, MediaStation.PlayMovie::new, Duration.ofSeconds(2), system.scheduler());
                             return onSuccess(reply, response -> {
-                                if (response.success()) {
-                                    return complete(response.message());
-                                } else {
-                                    return complete(org.apache.pekko.http.javadsl.model.StatusCodes.BAD_REQUEST, response.message());
-                                }
+                                if (response.success()) return complete(response.message());
+                                else return complete(org.apache.pekko.http.javadsl.model.StatusCodes.BAD_REQUEST, response.message());
                             });
                         })
                 ),
-                path("mediastation-stop", () ->
-                        post(() -> {
-                            System.out.println("Server: Received MediaStation Stop request");
+                path("mediastation-stop", () -> post(() -> {
                             this.mediaStation.tell(new MediaStation.StopMovie());
-                            return complete("MediaStation: Stop movie");
+                            return complete("MediaStation stopped");
                         })
                 ),
-                path("blinds", () ->
-                        post(() -> formField("value", value -> {
-                            boolean close = Boolean.parseBoolean(value);
-                            this.blinds.tell(new Blinds.ControlBlinds(close));
-                            return complete("Blinds " + (close ? "closed" : "opened"));
+                path("blinds", () -> post(() -> formField("value", value -> {
+                            this.blinds.tell(new Blinds.ControlBlinds(Boolean.parseBoolean(value)));
+                            return complete("Blinds toggled");
                         }))
                 )
         );

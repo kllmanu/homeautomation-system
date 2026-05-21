@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.typesafe.config.Config;
 
 public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnvironmentCommand> {
 
@@ -38,20 +39,19 @@ public class MqttEnvironment extends AbstractBehavior<MqttEnvironment.MqttEnviro
     private MqttEnvironment(ActorContext<MqttEnvironmentCommand> context) throws MqttException {
         super(context);
 
-        // Register for Temperature
         ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempAdapter =
                 context.messageAdapter(TemperatureEnvironment.TemperatureEnvironmentCommand.class, WrappedTemperatureCommand::new);
         context.getSystem().receptionist().tell(Receptionist.register(TemperatureEnvironment.TEMPERATURE_ENVIRONMENT_SERVICE_KEY, tempAdapter));
 
-        // Register for Weather
         ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherAdapter =
                 context.messageAdapter(WeatherEnvironment.WeatherEnvironmentCommand.class, WrappedWeatherCommand::new);
         context.getSystem().receptionist().tell(Receptionist.register(WeatherEnvironment.WEATHER_ENVIRONMENT_SERVICE_KEY, weatherAdapter));
 
-        // MQTT Setup
-        String broker = "tcp://10.0.40.161:1883";
+        Config config = context.getSystem().settings().config();
+        String brokerUrl = config.getString("homeautomation.mqtt.broker");
+
         String clientId = "HomeAutomationMqttEnv-" + java.util.UUID.randomUUID();
-        this.mqttClient = new MqttClient(broker, clientId, new MemoryPersistence());
+        this.mqttClient = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
 
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);

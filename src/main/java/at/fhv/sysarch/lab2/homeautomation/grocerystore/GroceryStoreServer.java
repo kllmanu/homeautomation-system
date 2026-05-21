@@ -14,6 +14,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.concurrent.CompletionStage;
+import com.typesafe.config.Config;
 
 public class GroceryStoreServer {
 
@@ -42,7 +43,7 @@ public class GroceryStoreServer {
 
             System.out.println("Initializing H2 database schema (url=" + url + ")...");
 
-            // Pekko Persistence JDBC Schema for H2 (Fully quoted for case-sensitivity)
+            // Pekko Persistence JDBC Schema for H2
             stmt.execute("CREATE TABLE IF NOT EXISTS \"event_journal\" (" +
                     "\"ordering\" BIGINT AUTO_INCREMENT, " +
                     "\"persistence_id\" VARCHAR(255) NOT NULL, " +
@@ -96,8 +97,12 @@ public class GroceryStoreServer {
         Function<HttpRequest, CompletionStage<HttpResponse>> service =
                 GroceryStoreHandlerFactory.create(new GroceryStoreServiceImpl(receiver, system.scheduler()), system);
 
+        Config config = system.settings().config();
+        String host = config.getString("grocerystore.server.host");
+        int port = config.getInt("grocerystore.server.port");
+
         CompletionStage<ServerBinding> binding = Http.get(system)
-                .newServerAt("127.0.0.1", 50052)
+                .newServerAt(host, port)
                 .bind(service);
 
         binding.thenAccept(b ->

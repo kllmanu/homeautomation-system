@@ -10,6 +10,7 @@ import at.fhv.sysarch.lab2.homeautomation.fridge.Fridge;
 import at.fhv.sysarch.lab2.homeautomation.fridge.FridgeModels;
 import at.fhv.sysarch.lab2.homeautomation.room.Space;
 import at.fhv.sysarch.lab2.homeautomation.uihandler.DemoHttpServer;
+import at.fhv.sysarch.lab2.homeautomation.uihandler.DashboardActor; // Created for Thread-Safety
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
@@ -182,13 +183,34 @@ public class HomeAutomationController extends AbstractBehavior<HomeAutomationCon
     }
 
     private void startServer() {
-        final Http http = Http.get(getContext().getSystem());
-        String modeString = external ? "EXTERNAL" : (manual ? "MANUAL" : "INTERNAL");
-        
-        DemoHttpServer app = new DemoHttpServer(tempEnv, weatherEnv, airCondition, mediaStation, blinds, fridge, modeString, (ActorContext) getContext());
-        this.serverBinding = http.newServerAt("localhost", 8084).bind(app.createRoute(getContext().getSystem()));
+        com.typesafe.config.Config config = getContext().getSystem().settings().config();
+        String host = config.getString("homeautomation.http.host");
+        int port = config.getInt("homeautomation.http.port");
 
-        getContext().getLog().info("Server started at http://localhost:8084/");
+        final org.apache.pekko.http.javadsl.Http http = org.apache.pekko.http.javadsl.Http.get(getContext().getSystem());
+        String modeString = external ? "EXTERNAL" : (manual ? "MANUAL" : "INTERNAL");
+
+        org.apache.pekko.stream.Materializer mat = org.apache.pekko.stream.Materializer.matFromSystem(org.apache.pekko.actor.typed.javadsl.Adapter.toClassic(getContext().getSystem()));
+        org.apache.pekko.stream.javadsl.Source<org.apache.pekko.http.javadsl.model.sse.ServerSentEvent, org.apache.pekko.stream.javadsl.SourceQueueWithComplete<org.apache.pekko.http.javadsl.model.sse.ServerSentEvent>> queueSource = 
+                org.apache.pekko.stream.javadsl.Source.queue(100, org.apache.pekko.stream.OverflowStrategy.dropTail());
+        
+        org.apache.pekko.japi.Pair<org.apache.pekko.stream.javadsl.SourceQueueWithComplete<org.apache.pekko.http.javadsl.model.sse.ServerSentEvent>, org.apache.pekko.stream.javadsl.Source<org.apache.pekko.http.javadsl.model.sse.ServerSentEvent, org.apache.pekko.NotUsed>> pair = 
+                queueSource.toMat(org.apache.pekko.stream.javadsl.BroadcastHub.of(org.apache.pekko.http.javadsl.model.sse.ServerSentEvent.class), org.apache.pekko.stream.javadsl.Keep.both()).run(mat);
+
+        ActorRef<DashboardActor.DashboardCommand> dashboardActor = getContext().spawn(
+                DashboardActor.create(pair.first(), airCondition, blinds, mediaStation, tempEnv, weatherEnv, fridge), 
+                "dashboardActor"
+        );
+
+        //Stream 
+        DemoHttpServer app = new DemoHttpServer(
+                tempEnv, weatherEnv, airCondition, mediaStation, blinds, fridge, 
+                dashboardActor, pair.second(), modeString
+        );
+        
+        this.serverBinding = http.newServerAt(host, port).bind(app.createRoute(getContext().getSystem()));
+
+        getContext().getLog().info("Server started at http://{}:{}/", host, port);
         getContext().getLog().info("PRESS RETURN TO EXIT");
 
         new Thread(() -> {

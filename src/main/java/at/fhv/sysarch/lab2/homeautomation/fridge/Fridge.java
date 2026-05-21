@@ -42,8 +42,7 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
         this.maxWeight = maxWeight;
 
         // Initialize gRPC client
-        GrpcClientSettings settings = GrpcClientSettings.connectToServiceAt("127.0.0.1", 50052, context.getSystem())
-                .withTls(false);
+        GrpcClientSettings settings = GrpcClientSettings.fromConfig("grocery-store", context.getSystem());
         this.groceryStoreClient = GroceryStoreClient.create(settings, context.getSystem());
 
         // Spawn internal sensors
@@ -52,7 +51,7 @@ public class Fridge extends AbstractBehavior<FridgeModels.FridgeCommand> {
 
         getContext().getLog().info("Smart Fridge started: MaxVolume={}, MaxWeight={}kg", maxVolume, maxWeight);
         
-        // Initial stock (optional, let's add some milk and cheese)
+        // Initial stock
         addInitialStock();
     }
 
